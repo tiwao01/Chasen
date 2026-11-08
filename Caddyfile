@@ -1,0 +1,12 @@
+# dev
+localhost:8080 {
+	# html ディレクトリを公開ルートに指定
+	root * ./html
+	# 静的ファイル配信を有効化
+	file_server
+	# WASM起動に必要なクロスオリジン隔離ヘッダ
+	header {
+		Cross-Origin-Opener-Policy same-origin
+		Cross-Origin-Embedder-Policy require-corp
+	}
+}
