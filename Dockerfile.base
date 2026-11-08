@@ -1,0 +1,12 @@
+FROM	alpine:latest
+
+RUN	apk update && \
+	apk upgrade && \
+	apk add --no-cache \
+		base \
+		coreutils \
+		tar \
+		wget \
+		curl
+
+WORKDIR	/root

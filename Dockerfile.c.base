@@ -1,0 +1,8 @@
+FROM	wasm-alpine-base
+
+RUN	apk add --no-cache \
+	alpine-sdk \
+	build-base \
+	gdb
+
+WORKDIR	/workspace
