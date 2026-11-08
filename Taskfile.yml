@@ -28,10 +28,10 @@ tasks:
     cmds:
       - podman build -t wasm-alpine-{{.LANG}} -f Dockerfile.{{.LANG}}.base .
       - mkdir -p {{.OUTPUT_DIR}}
-      - podman create --name temp-{{.LANG}} wasm-alpine-{{.LANG}}
-      - podman export temp-{{.LANG}} | tar -O > {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.tar
+      - podman create --replace --name temp-{{.LANG}} wasm-alpine-{{.LANG}}
+      - podman export temp-{{.LANG}} -o {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.tar
       - podman rm temp-{{.LANG}}
-      - "podman run --rm -v ./{{.OUTPUT_DIR}}:/work:z alpine:latest sh -c \"apk add --no-cache genext2fs && genext2fs -B 4096 -d /work/rootfs-{{.LANG}}.tar /work/rootfs-{{.LANG}}.ext2\""
+      - "podman run --rm -v ./{{.OUTPUT_DIR}}:/work:z alpine:latest sh -c \"apk add --no-cache genext2fs && mkdir -p /work/rootfs_{{.LANG}}_dir && tar -xf /work/rootfs-{{.LANG}}.tar -C /work/rootfs_{{.LANG}}_dir && genext2fs -B 4096 -d /work/rootfs_{{.LANG}}_dir /work/rootfs-{{.LANG}}.ext2 && rm -rf /work/rootfs_{{.LANG}}_dir /work/rootfs-{{.LANG}}.tar\""
     desc: "Build image for a specified language. (Required: LANG=<lang>)"
     requires:
       vars: [LANG]
