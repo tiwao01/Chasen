@@ -3,6 +3,7 @@ version: '3'
 vars:
   OUTPUT_DIR: "dist"
   IMG_FILTER: "wasm-alpine-*"
+  LOCAL_HOST: '{{.LOCAL_HOST | default "8080"}}'
 
 tasks:
   default:
@@ -30,6 +31,7 @@ tasks:
       - podman create --name temp-{{.LANG}} wasm-alpine-{{.LANG}}
       - podman export temp-{{.LANG}} | tar -O > {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.tar
       - podman rm temp-{{.LANG}}
+      - "podman run --rm -v ./{{.OUTPUT_DIR}}:/work:z alpine:latest sh -c \"apk add --no-cache genext2fs && genext2fs -B 4096 -d /work/rootfs-{{.LANG}}.tar /work/rootfs-{{.LANG}}.ext2\""
     desc: "Build image for a specified language. (Required: LANG=<lang>)"
     requires:
       vars: [LANG]
@@ -39,3 +41,8 @@ tasks:
       - rm -rf {{.OUTPUT_DIR}}
       - podman rmi $(podman images --filter=reference="{{.IMG_FILTER}}" -q)
     desc: "Remove \"{{.OUTPUT_DIR}}\" directory and remove images filtered \"{{.IMG_FILTER}}\"."
+
+  caddy:run:
+    cmds:
+      - "podman run --rm -it -p {{.LOCAL_HOST}}:8080 -v ./html:/html:z -v ./{{.OUTPUT_DIR}}:/dist:z -v ./Caddyfile:/etc/caddy/Caddyfile:z caddy:latest"
+    desc: "Run Caddy web server locally. (Default: LOCAL_HOST=8080)"
