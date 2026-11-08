@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8" />
+		<title>TERM | CHASEN</title>
+		<!-- xterm.js -->
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+		<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+		<!-- FitAddon -->
+		<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+		<!-- MonacoEditor -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css" />
+		<!-- Common CSS -->
+		<link rel="stylesheet" href="./assets/css/common.css"/>
+	</head>
+	<body>
+		<!-- Editor pane -->
+		<div class="pane" id="pane-editor">
+			<div class="header">
+				<a href="index.html" class="back-link">&larr; back</a>
+				<span id="editor-title">Editor</span>
+			</div>
+			<div id="editor-container"></div>
+		</div>
+
+		<!-- Terminal pane -->
+		<div class="pane" id="pane-terminal">
+			<div class="header" id="title">Loading Environment...</div>
+			<div id="terminal-container"></div>
+		</div>
+
+		<!-- Workspace -->
+		<script type="module" src="./assets/js/workspace.js"></script>
+	</body>
+</html>
