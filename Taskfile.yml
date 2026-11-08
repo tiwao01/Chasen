@@ -14,19 +14,14 @@ tasks:
       - task --list-all
     silent: true
 
-  pod:pull:
+  build:base:
     cmds:
-      - podman pull alpine:latest
-    desc: "Pull alpine image."
-
-  pod:build-base:
-    cmds:
-      - podman build -t wasm-alpine-base -f Dockerfile.base .
+      - podman build --platform linux/i386 -t wasm-alpine-base -f Dockerfile.base .
     desc: "Build base alpine image."
 
-  pod:build-lang:
+  build:lang:
     cmds:
-      - podman build -t wasm-alpine-{{.LANG}} -f Dockerfile.{{.LANG}}.base .
+      - podman build --platform linux/i386 -t wasm-alpine-{{.LANG}} -f Dockerfile.{{.LANG}}.base .
       - mkdir -p {{.OUTPUT_DIR}}
       - podman create --replace --name temp-{{.LANG}} wasm-alpine-{{.LANG}}
       - podman export temp-{{.LANG}} -o {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.tar
@@ -44,5 +39,5 @@ tasks:
 
   caddy:run:
     cmds:
-      - "podman run --rm -it -p {{.LOCAL_HOST}}:8080 -v ./html:/html:z -v ./{{.OUTPUT_DIR}}:/dist:z -v ./Caddyfile:/etc/caddy/Caddyfile:z caddy:latest"
+      - "podman run --rm -it -p {{.LOCAL_HOST}}:8080 -v ./html:/html:z -v ./{{.OUTPUT_DIR}}:/html/dist:z -v ./Caddyfile:/etc/caddy/Caddyfile:z caddy:latest"
     desc: "Run Caddy web server locally. (Default: LOCAL_HOST=8080)"

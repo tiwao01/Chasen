@@ -1,4 +1,4 @@
-FROM	wasm-alpine-base
+FROM	--platform=linux/i386 wasm-alpine-base
 
 RUN	apk add --no-cache \
 	alpine-sdk \
