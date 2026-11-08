@@ -1,0 +1,43 @@
+version: '3'
+
+vars:
+  DOCF_BASE: "Dockerfile.base"
+  DOCF_LANG: "Dockerfile."
+  OUTPUT_DIR: "dist"
+  IMG_FILTER: "wasm-alpine-*"
+
+tasks:
+  default:
+    aliases:
+      - list
+    desc: "List all tasks."
+    cmds:
+      - task --list-all
+    silent: true
+
+  pod:pull:
+    cmds:
+      - podman pull alpine:latest
+    desc: "Pull alpine image."
+
+  pod:build-base:
+    cmds:
+      - podman build -t wasm-alpine-base -f {{.DOCF_BASE}} .
+    desc: "Build base alpine image."
+
+  pod:build-lang:
+    cmds:
+      - podman build -t wasm-alpine-{{.LANG}} -f {{.DOCF_LANG}}{{.LANG}} .
+      - mkdir -p {{.OUTPUT_DIR}}
+      - podman create --name temp-{{.LANG}} wasm-alpine-{{.LANG}}
+      - podman export temp-{{.LANG}} | tar -O > {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.tar
+      - podman rm temp-{{.LANG}}
+    desc: "Build image for a specified language. (Required: LANG=<lang>)"
+    requires:
+      vars: [LANG]
+
+  clean:
+    cmds:
+      - rm -rf {{.OUTPUT_DIR}}
+      - podman rmi $(podman images --filter=reference="{{.IMG_FILTER}}" -q)
+    desc: "Remove \"{{.OUTPUT_DIR}}\" directory and remove images filtered \"{{.IMG_FILTER}}\"."
