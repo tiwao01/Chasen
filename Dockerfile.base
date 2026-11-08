@@ -6,6 +6,7 @@ RUN	apk update && \
 		coreutils \
 		tar \
 		wget \
-		curl
+		curl \
+		bash
 
 WORKDIR	/root
