@@ -1,8 +1,6 @@
 version: '3'
 
 vars:
-  DOCF_BASE: "Dockerfile.base"
-  DOCF_LANG: "Dockerfile."
   OUTPUT_DIR: "dist"
   IMG_FILTER: "wasm-alpine-*"
 
@@ -22,12 +20,12 @@ tasks:
 
   pod:build-base:
     cmds:
-      - podman build -t wasm-alpine-base -f {{.DOCF_BASE}} .
+      - podman build -t wasm-alpine-base -f Dockerfile.base .
     desc: "Build base alpine image."
 
   pod:build-lang:
     cmds:
-      - podman build -t wasm-alpine-{{.LANG}} -f {{.DOCF_LANG}}{{.LANG}} .
+      - podman build -t wasm-alpine-{{.LANG}} -f Dockerfile.{{.LANG}}.base .
       - mkdir -p {{.OUTPUT_DIR}}
       - podman create --name temp-{{.LANG}} wasm-alpine-{{.LANG}}
       - podman export temp-{{.LANG}} | tar -O > {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.tar
