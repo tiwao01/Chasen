@@ -125,11 +125,14 @@ export class TabManager {
 		entries = Array.from (this.mgr.openWidgets.entries ());
 
 		for (i = 0; i < entries.length; i++) {
+			let currentPath = "";
+
 			fp = entries[i][0];
 			widget = entries[i][1];
-			displayTitle = labels.get (fp);
+			currentPath = fp;
+			displayTitle = labels.get (currentPath);
 			if (displayTitle === undefined) {
-				displayTitle = fp.split ("/").pop ();
+				displayTitle = currentPath.split ("/").pop ();
 			}
 
 			tabElm = document.createElement ("div");
@@ -137,17 +140,17 @@ export class TabManager {
 			if (this.mgr.activeWidget === widget) {
 				tabElm.classList.add ("active");
 			}
-			tabElm.title = fp;
+			tabElm.title = currentPath;
 			tabElm.setAttribute ("role", "tab");
 
 			tabElm.addEventListener ("click", () => {
-				self.mgr.openFile (fp);
+				self.mgr.openFile (currentPath);
 			});
 
 			tabElm.addEventListener ("contextmenu", (ev) => {
 				ev.preventDefault ();
 				ev.stopPropagation ();
-				self.openContextMenu (ev.clientX, ev.clientY, fp);
+				self.openContextMenu (ev.clientX, ev.clientY, currentPath);
 			});
 
 			if (widget !== null && widget !== undefined && widget.isDirty === true) {
@@ -170,7 +173,7 @@ export class TabManager {
 			closeBtn.title = "閉じる";
 			closeBtn.addEventListener ("click", (ev) => {
 				ev.stopPropagation ();
-				self.mgr.closeFile (fp);
+				self.mgr.closeFile (currentPath);
 			});
 			tabElm.appendChild (closeBtn);
 

@@ -333,8 +333,7 @@ body {
 }
 
 .lm-TabBar {
-  background: var(--ide-bg-tab) !important;
-  border-bottom: 1px solid var(--ide-bg-surface) !important;
+  display: none !important;
 }
 
 .lm-Tab {

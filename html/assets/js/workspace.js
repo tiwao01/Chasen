@@ -748,14 +748,10 @@ export class WorkspaceManager {
 
 		if (this.activeWidget === widget) {
 			this.activeWidget = null;
-			remaining = Array.from(this.openWidgets.values());
+			remaining = Array.from (this.openWidgets.values ());
 			if (remaining.length > 0) {
 				nextWidget = remaining[remaining.length - 1];
-				this.dockPanel.activateWidget(nextWidget);
-				this.activeWidget = nextWidget;
-				if (nextWidget.editor !== null && nextWidget.editor !== undefined) {
-					nextWidget.editor.layout();
-				}
+				this._focusEditorWidget (nextWidget);
 			}
 		}
 
@@ -821,6 +817,54 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Brings a specific editor widget to the front and updates active tab state.
+	 * @param {EditorWidget} widget - Target editor widget.
+	 * @returns {void}
+	 */
+	_focusEditorWidget (widget) {
+		let allWidgets = [];
+		let i = 0;
+		let w = null;
+
+		if (widget === null || widget === undefined) {
+			return;
+		}
+
+		if (this.openWidgets instanceof Map) {
+			allWidgets = Array.from (this.openWidgets.values ());
+			for (i = 0; i < allWidgets.length; i++) {
+				w = allWidgets[i];
+				if (w !== null && w !== undefined && w !== widget) {
+					w.hide ();
+				}
+			}
+		}
+
+		widget.show ();
+		this.activeWidget = widget;
+
+		if (this.dockPanel !== null && this.dockPanel !== undefined) {
+			this.dockPanel.activateWidget (widget);
+			this.dockPanel.update ();
+		}
+
+		if (widget.editor !== null && widget.editor !== undefined) {
+			setTimeout (() => {
+				if (widget.editor !== null && widget.editor !== undefined) {
+					widget.editor.layout ();
+					if (typeof widget.editor.focus === "function") {
+						widget.editor.focus ();
+					}
+				}
+			}, EDITOR_LAYOUT_DELAY_MS);
+		}
+
+		if (this.tabMgr !== null && this.tabMgr !== undefined) {
+			this.tabMgr.render ();
+		}
+	}
+
+	/**
 	 * Opens a file in a Monaco editor widget inside the dock panel or activates an existing one.
 	 * @param {string} path - Full file path to open.
 	 */
@@ -830,53 +874,35 @@ export class WorkspaceManager {
 		let fileName = "";
 		let monacoLang = "";
 
-		if (this.openWidgets.has(path)) {
-			widget = this.openWidgets.get(path);
-			this.dockPanel.activateWidget(widget);
-			this.activeWidget = widget;
-			if (widget.editor !== null) {
-				widget.editor.layout();
-			}
-			if (this.tabMgr !== null && this.tabMgr !== undefined) {
-				this.tabMgr.render();
-			}
+		if (this.openWidgets.has (path)) {
+			widget = this.openWidgets.get (path);
+			this._focusEditorWidget (widget);
 			return;
 		}
 
 		if (this.fileContents instanceof Map) {
-			content = this.fileContents.get(path);
+			content = this.fileContents.get (path);
 		}
 		if (content === undefined) {
 			content = "";
 		}
 
-		fileName = path.split("/").pop();
-		monacoLang = this.detectLanguage(fileName);
+		fileName = path.split ("/").pop ();
+		monacoLang = this.detectLanguage (fileName);
 
-		widget = new EditorWidget(path, content, monacoLang, fileName, this);
-		this.openWidgets.set(path, widget);
+		widget = new EditorWidget (path, content, monacoLang, fileName, this);
+		this.openWidgets.set (path, widget);
 
 		widget.title.closable = true;
-		widget.disposed.connect(() => {
-			this.openWidgets.delete(path);
+		widget.disposed.connect (() => {
+			this.openWidgets.delete (path);
 			if (this.tabMgr !== null && this.tabMgr !== undefined) {
-				this.tabMgr.render();
+				this.tabMgr.render ();
 			}
 		});
 
-		this.dockPanel.addWidget(widget);
-		this.dockPanel.activateWidget(widget);
-		this.activeWidget = widget;
-
-		if (this.tabMgr !== null && this.tabMgr !== undefined) {
-			this.tabMgr.render();
-		}
-
-		setTimeout(() => {
-			if (widget.editor !== null) {
-				widget.editor.layout();
-			}
-		}, EDITOR_LAYOUT_DELAY_MS);
+		this.dockPanel.addWidget (widget);
+		this._focusEditorWidget (widget);
 	}
 
 	/**
