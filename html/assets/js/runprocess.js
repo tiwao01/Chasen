@@ -1,6 +1,6 @@
 import * as CheerpX from "https://cxrtnc.leaningtech.com/1.2.8/cx.esm.js";
-
-const WORKSPACE_CHANGE_MARKER = "__CX_WS_CHANGED__";
+import { CheerpXFsClient } from "./cheerpx-fs-client.js";
+import { WorkspaceWatcher } from "./workspace-watcher.js";
 
 /**
  * Wrapper class for managing and interacting with a CheerpX Linux instance.
@@ -15,6 +15,7 @@ export class CheerpXRunner {
 	 */
 	constructor (defaultOptions) {
 		let defRunOpt = null;
+		let onWsChange = null;
 
 		defRunOpt = {
 			env: [
@@ -33,22 +34,83 @@ export class CheerpXRunner {
 		this.runOpt = defRunOpt;
 		this.cx = null;
 		this.sendFunc = null;
-		this.isSilent = false;
-		this.captureBuffer = "";
-		this.isCapturing = false;
-		this.onWorkspaceChange = null;
-		this._lineCarry = "";
 
-		if (defaultOptions === undefined) {
-			return;
+		if (defaultOptions !== undefined) {
+			if (defaultOptions.decCode !== undefined) {
+				this.decCode = defaultOptions.decCode;
+			}
+			if (typeof defaultOptions.onWorkspaceChange === "function") {
+				onWsChange = defaultOptions.onWorkspaceChange;
+			}
+			this._applyRunOptions(this.runOpt, defaultOptions.runOpt);
 		}
-		if (defaultOptions.decCode !== undefined) {
-			this.decCode = defaultOptions.decCode;
-		}
-		if (typeof defaultOptions.onWorkspaceChange === "function") {
-			this.onWorkspaceChange = defaultOptions.onWorkspaceChange;
-		}
-		this._applyRunOptions(this.runOpt, defaultOptions.runOpt);
+
+		this.fs = new CheerpXFsClient(this);
+		this.watcher = new WorkspaceWatcher(this, onWsChange);
+	}
+
+	/**
+	 * Gets whether silent console mode is active.
+	 * @returns {boolean}
+	 */
+	get isSilent () {
+		return this.fs.isSilent;
+	}
+
+	/**
+	 * Sets whether silent console mode is active.
+	 * @param {boolean} val - True to suppress terminal writes.
+	 */
+	set isSilent (val) {
+		this.fs.isSilent = val;
+	}
+
+	/**
+	 * Gets captured console output buffer.
+	 * @returns {string}
+	 */
+	get captureBuffer () {
+		return this.fs.captureBuffer;
+	}
+
+	/**
+	 * Sets captured console output buffer.
+	 * @param {string} val - Buffer string.
+	 */
+	set captureBuffer (val) {
+		this.fs.captureBuffer = val;
+	}
+
+	/**
+	 * Gets whether console output capture is active.
+	 * @returns {boolean}
+	 */
+	get isCapturing () {
+		return this.fs.isCapturing;
+	}
+
+	/**
+	 * Sets whether console output capture is active.
+	 * @param {boolean} val - True to capture output.
+	 */
+	set isCapturing (val) {
+		this.fs.isCapturing = val;
+	}
+
+	/**
+	 * Gets workspace change callback.
+	 * @returns {Function|null}
+	 */
+	get onWorkspaceChange () {
+		return this.watcher.onWorkspaceChange;
+	}
+
+	/**
+	 * Sets workspace change callback.
+	 * @param {Function|null} val - Callback function.
+	 */
+	set onWorkspaceChange (val) {
+		this.watcher.setOnWorkspaceChange(val);
 	}
 
 	/**
@@ -75,102 +137,12 @@ export class CheerpXRunner {
 	}
 
 	/**
-	 * Filters workspace change markers out of console text and triggers callback.
-	 * @param {string} chunk - Decoded console output chunk.
-	 * @returns {string} Chunk with marker lines removed.
-	 */
-	_consumeChangeMarkers (chunk) {
-		let combined = "";
-		let endsWithNewline = false;
-		let parts = [];
-		let tail = "";
-		let cleanTail = "";
-		let filtered = [];
-		let i = 0;
-		let line = "";
-		let hasChanged = false;
-		let result = "";
-
-		combined = this._lineCarry + chunk;
-		this._lineCarry = "";
-		endsWithNewline = combined.endsWith("\n");
-		parts = combined.split("\n");
-
-		if (endsWithNewline === false) {
-			tail = parts.pop();
-			if (tail === undefined) {
-				tail = "";
-			}
-			cleanTail = tail.replace(/\r$/, "");
-			if (cleanTail === WORKSPACE_CHANGE_MARKER || (cleanTail.startsWith("__CX_") && WORKSPACE_CHANGE_MARKER.startsWith(cleanTail))) {
-				this._lineCarry = tail;
-			} else {
-				filtered.push(tail);
-			}
-		}
-
-		for (i = 0; i < parts.length; i++) {
-			if (endsWithNewline === true && i === parts.length - 1 && parts[i] === "") {
-				continue;
-			}
-			line = parts[i].replace(/\r$/, "");
-			if (line === WORKSPACE_CHANGE_MARKER) {
-				hasChanged = true;
-			} else {
-				filtered.push(parts[i]);
-			}
-		}
-
-		if (hasChanged === true) {
-			if (typeof this.onWorkspaceChange === "function") {
-				this.onWorkspaceChange();
-			}
-		}
-
-		result = filtered.join("\n");
-		if (endsWithNewline === true && filtered.length > 0) {
-			result = result + "\n";
-		}
-
-		return result;
-	}
-
-	/**
-	 * Starts a background inotify watcher inside CheerpX for targetDir.
+	 * Starts a background watcher loop inside CheerpX for targetDir.
 	 * @param {string} targetDir - Directory path to watch.
 	 * @returns {Promise<void>}
 	 */
 	async startWorkspaceWatcher (targetDir) {
-		let watchCmd = "";
-		let runOpt = null;
-
-		if (this.cx === null) {
-			return;
-		}
-
-		runOpt = {
-			env: this.runOpt.env,
-			cwd: targetDir,
-			uid: this.runOpt.uid,
-			gid: this.runOpt.gid
-		};
-
-		watchCmd = [
-			`mkdir -p "${targetDir}"`,
-			`prev_snap=""`,
-			`while true; do`,
-			`  cur_snap=$(find "${targetDir}" -printf '%y %p %T@ %s\n' 2>/dev/null || ls -laR "${targetDir}" 2>/dev/null)`,
-			`  if [ "$cur_snap" != "$prev_snap" ]; then`,
-			`    prev_snap="$cur_snap"`,
-			`    echo "${WORKSPACE_CHANGE_MARKER}"`,
-			`  fi`,
-			`  sleep 0.5`,
-			`done`
-		].join("\n");
-
-		this.cx.run("/bin/sh", ["-c", watchCmd], runOpt).catch((err) => {
-			console.warn("[Watcher] Watch loop ended:", err);
-		});
+		await this.watcher.startWorkspaceWatcher(targetDir);
 	}
 
 	/**
@@ -200,28 +172,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<void>}
 	 */
 	async writeFile (filePath, content) {
-		let enc = null;
-		let bytes = null;
-		let bStr = "";
-		let b64 = "";
-		let cmd = "";
-		let i = 0;
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		enc = new TextEncoder();
-		bytes = enc.encode(content);
-		for (i = 0; i < bytes.length; i++) {
-			bStr = bStr + String.fromCharCode(bytes[i]);
-		}
-		b64 = btoa(bStr);
-
-		this.isSilent = true;
-		cmd = `mkdir -p "$(dirname "${filePath}")" && echo "${b64}" | base64 -d > "${filePath}" && sync >/dev/null 2>&1`;
-		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
-		this.isSilent = false;
+		await this.fs.writeFile(filePath, content);
 	}
 
 	/**
@@ -230,16 +181,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<void>}
 	 */
 	async createDirectory (dirPath) {
-		let cmd = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		this.isSilent = true;
-		cmd = `mkdir -p "${dirPath}" && sync >/dev/null 2>&1`;
-		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
-		this.isSilent = false;
+		await this.fs.createDirectory(dirPath);
 	}
 
 	/**
@@ -248,18 +190,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<boolean>} True if the path exists.
 	 */
 	async pathExists (targetPath) {
-		let cmd = "";
-		let res = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		cmd = `if [ -e "${targetPath}" ]; then echo "YES"; else echo "NO"; fi`;
-		res = await this.execSilentOutput(cmd);
-		res = res.trim();
-
-		return res === "YES";
+		return await this.fs.pathExists(targetPath);
 	}
 
 	/**
@@ -268,18 +199,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<boolean>} True if the path is a directory.
 	 */
 	async isDirectory (targetPath) {
-		let cmd = "";
-		let res = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		cmd = `if [ -d "${targetPath}" ]; then echo "YES"; else echo "NO"; fi`;
-		res = await this.execSilentOutput(cmd);
-		res = res.trim();
-
-		return res === "YES";
+		return await this.fs.isDirectory(targetPath);
 	}
 
 	/**
@@ -288,16 +208,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<void>}
 	 */
 	async removeFile (filePath) {
-		let cmd = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		this.isSilent = true;
-		cmd = `rm -rf "${filePath}" && sync >/dev/null 2>&1`;
-		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
-		this.isSilent = false;
+		await this.fs.removeFile(filePath);
 	}
 
 	/**
@@ -307,16 +218,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<void>}
 	 */
 	async copyFile (srcPath, destPath) {
-		let cmd = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		this.isSilent = true;
-		cmd = `mkdir -p "$(dirname "${destPath}")" && cp -r "${srcPath}" "${destPath}" && sync >/dev/null 2>&1`;
-		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
-		this.isSilent = false;
+		await this.fs.copyFile(srcPath, destPath);
 	}
 
 	/**
@@ -326,16 +228,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<void>}
 	 */
 	async movePath (srcPath, destPath) {
-		let cmd = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		this.isSilent = true;
-		cmd = `mkdir -p "$(dirname "${destPath}")" && mv "${srcPath}" "${destPath}" && sync >/dev/null 2>&1`;
-		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
-		this.isSilent = false;
+		await this.fs.movePath(srcPath, destPath);
 	}
 
 	/**
@@ -344,20 +237,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<string>} Captured output string.
 	 */
 	async execSilentOutput (cmd) {
-		let result = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		this.captureBuffer = "";
-		this.isCapturing = true;
-		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
-		this.isCapturing = false;
-		result = this.captureBuffer;
-		this.captureBuffer = "";
-
-		return result;
+		return await this.fs.execSilentOutput(cmd);
 	}
 
 	/**
@@ -366,34 +246,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<string[]>} List of found paths.
 	 */
 	async listFiles (targetDir) {
-		let cmd = "";
-		let rawOut = "";
-		let lines = [];
-		let paths = [];
-		let i = 0;
-		let line = "";
-		let normTarget = "";
-
-		cmd = `mkdir -p "${targetDir}" && find "${targetDir}" -mindepth 1 2>/dev/null`;
-		rawOut = await this.execSilentOutput(cmd);
-		lines = rawOut.split(/\r?\n/);
-		normTarget = targetDir.replace(/\/+$/, "");
-
-		for (i = 0; i < lines.length; i++) {
-			line = lines[i].trim();
-			if (line === "") {
-				continue;
-			}
-			if (line === normTarget) {
-				continue;
-			}
-			if (line === normTarget + "/") {
-				continue;
-			}
-			paths.push(line);
-		}
-
-		return paths;
+		return await this.fs.listFiles(targetDir);
 	}
 
 	/**
@@ -402,68 +255,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<string>} Decoded file content, or empty string on failure/empty file.
 	 */
 	async readFile (filePath) {
-		let cmd = "";
-		let b64 = "";
-		let bStr = "";
-		let bytes = null;
-		let dec = null;
-		let i = 0;
-
-		cmd = `base64 "${filePath}" | tr -d '\\r\\n'`;
-		b64 = await this.execSilentOutput(cmd);
-		b64 = b64.trim();
-
-		if (b64 === "") {
-			return "";
-		}
-
-		try {
-			bStr = atob(b64);
-			bytes = new Uint8Array(bStr.length);
-			for (i = 0; i < bStr.length; i++) {
-				bytes[i] = bStr.charCodeAt(i);
-			}
-			dec = new TextDecoder(this.decCode);
-			return dec.decode(bytes);
-		} catch (e) {
-			console.warn(`[readFile] Failed to base64 decode file: ${filePath}`, e);
-			return "";
-		}
-	}
-
-	/**
-	 * Resolves a single entry path (appending "/" if it is a directory) or null if skipped.
-	 * @param {string} rawLine - Raw line from find output.
-	 * @param {string} normTarget - Normalized target directory path.
-	 * @returns {Promise<string|null>} Normalized entry path or null.
-	 */
-	async _resolveEntryPath (rawLine, normTarget) {
-		let line = "";
-		let dirCmd = "";
-		let dirRes = "";
-
-		line = rawLine.trim();
-		if (line === "") {
-			return null;
-		}
-		if (line === normTarget) {
-			return null;
-		}
-		if (line === normTarget + "/") {
-			return null;
-		}
-		if (line === "/") {
-			return null;
-		}
-
-		dirCmd = `if [ -d "${line}" ]; then echo "YES"; else echo "NO"; fi`;
-		dirRes = await this.execSilentOutput(dirCmd);
-		dirRes = dirRes.trim();
-
-		if (dirRes === "YES") {
-			return line + "/";
-		}
-		return line;
+		return await this.fs.readFile(filePath);
 	}
 
 	/**
@@ -472,46 +264,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<{paths: string[], fileMap: Map<string, string>}>} Synced paths and file contents.
 	 */
 	async syncWorkspaceFiles (targetDir) {
-		let cmd = "";
-		let rawOut = "";
-		let lines = [];
-		let paths = [];
-		let fileMap = null;
-		let i = 0;
-		let entryPath = null;
-		let filePath = "";
-		let content = "";
-		let normTarget = "";
-
-		if (this.cx === null) {
-			throw new Error("CheerpX is not initialized");
-		}
-
-		fileMap = new Map();
-		cmd = `mkdir -p "${targetDir}" && find "${targetDir}" -mindepth 1 2>/dev/null`;
-		rawOut = await this.execSilentOutput(cmd);
-		lines = rawOut.split(/\r?\n/);
-		normTarget = targetDir.replace(/\/+$/, "");
-
-		for (i = 0; i < lines.length; i++) {
-			entryPath = await this._resolveEntryPath(lines[i], normTarget);
-			if (entryPath !== null) {
-				paths.push(entryPath);
-			}
-		}
-
-		for (i = 0; i < paths.length; i++) {
-			filePath = paths[i];
-			if (!filePath.endsWith("/")) {
-				content = await this.readFile(filePath);
-				fileMap.set(filePath, content);
-			}
-		}
-
-		return {
-			paths: paths,
-			fileMap: fileMap
-		};
+		return await this.fs.syncWorkspaceFiles(targetDir);
 	}
 
 	/**
@@ -519,18 +272,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<boolean>} True if the change flag existed, false otherwise.
 	 */
 	async checkAndResetChangeFlag () {
-		let cmd = "";
-		let result = "";
-
-		if (this.cx === null) {
-			return false;
-		}
-
-		cmd = `if [ -f /tmp/workspace_changed ]; then rm -f /tmp/workspace_changed && echo "YES"; else echo "NO"; fi`;
-		result = await this.execSilentOutput(cmd);
-		result = result.trim();
-
-		return result === "YES";
+		return await this.fs.checkAndResetChangeFlag();
 	}
 
 	/**
@@ -539,18 +281,7 @@ export class CheerpXRunner {
 	 * @returns {Promise<string>} Line count output from `wc -l`.
 	 */
 	async getWorkspaceCount (targetDir) {
-		let cmd = "";
-		let result = "";
-
-		if (this.cx === null) {
-			return "";
-		}
-
-		cmd = `find "${targetDir}" 2>/dev/null | wc -l`;
-		result = await this.execSilentOutput(cmd);
-		result = result.trim();
-
-		return result;
+		return await this.fs.getWorkspaceCount(targetDir);
 	}
 
 	/**
@@ -625,14 +356,14 @@ export class CheerpXRunner {
 							stream: true
 						}
 					);
-					if (this.isCapturing) {
-						this.captureBuffer = this.captureBuffer + txt;
+					if (this.fs.isCapturing) {
+						this.fs.captureBuffer = this.fs.captureBuffer + txt;
 						return;
 					}
-					if (this.isSilent) {
+					if (this.fs.isSilent) {
 						return;
 					}
-					cleanedTxt = this._consumeChangeMarkers(txt);
+					cleanedTxt = this.watcher.consumeChangeMarkers(txt);
 					if (cleanedTxt === "") {
 						return;
 					}
