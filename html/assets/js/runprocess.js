@@ -1,5 +1,7 @@
 import * as CheerpX from "https://cxrtnc.leaningtech.com/1.2.8/cx.esm.js";
 
+const WORKSPACE_CHANGE_MARKER = "__CX_WS_CHANGED__";
+
 /**
  * Wrapper class for managing and interacting with a CheerpX Linux instance.
  */
@@ -9,6 +11,7 @@ export class CheerpXRunner {
 	 * @param {Object} [defaultOptions] - Optional default configuration.
 	 * @param {string} [defaultOptions.decCode] - Default text decoder encoding.
 	 * @param {Object} [defaultOptions.runOpt] - Default process execution options.
+	 * @param {Function} [defaultOptions.onWorkspaceChange] - Callback invoked when workspace changes are detected.
 	 */
 	constructor (defaultOptions) {
 		let defRunOpt = null;
@@ -33,12 +36,17 @@ export class CheerpXRunner {
 		this.isSilent = false;
 		this.captureBuffer = "";
 		this.isCapturing = false;
+		this.onWorkspaceChange = null;
+		this._lineCarry = "";
 
 		if (defaultOptions === undefined) {
 			return;
 		}
 		if (defaultOptions.decCode !== undefined) {
 			this.decCode = defaultOptions.decCode;
+		}
+		if (typeof defaultOptions.onWorkspaceChange === "function") {
+			this.onWorkspaceChange = defaultOptions.onWorkspaceChange;
 		}
 		this._applyRunOptions(this.runOpt, defaultOptions.runOpt);
 	}
@@ -64,6 +72,105 @@ export class CheerpXRunner {
 		if (srcOpt.gid !== undefined) {
 			targetOpt.gid = srcOpt.gid;
 		}
+	}
+
+	/**
+	 * Filters workspace change markers out of console text and triggers callback.
+	 * @param {string} chunk - Decoded console output chunk.
+	 * @returns {string} Chunk with marker lines removed.
+	 */
+	_consumeChangeMarkers (chunk) {
+		let combined = "";
+		let endsWithNewline = false;
+		let parts = [];
+		let tail = "";
+		let cleanTail = "";
+		let filtered = [];
+		let i = 0;
+		let line = "";
+		let hasChanged = false;
+		let result = "";
+
+		combined = this._lineCarry + chunk;
+		this._lineCarry = "";
+		endsWithNewline = combined.endsWith("\n");
+		parts = combined.split("\n");
+
+		if (endsWithNewline === false) {
+			tail = parts.pop();
+			if (tail === undefined) {
+				tail = "";
+			}
+			cleanTail = tail.replace(/\r$/, "");
+			if (cleanTail === WORKSPACE_CHANGE_MARKER || (cleanTail.startsWith("__CX_") && WORKSPACE_CHANGE_MARKER.startsWith(cleanTail))) {
+				this._lineCarry = tail;
+			} else {
+				filtered.push(tail);
+			}
+		}
+
+		for (i = 0; i < parts.length; i++) {
+			if (endsWithNewline === true && i === parts.length - 1 && parts[i] === "") {
+				continue;
+			}
+			line = parts[i].replace(/\r$/, "");
+			if (line === WORKSPACE_CHANGE_MARKER) {
+				hasChanged = true;
+			} else {
+				filtered.push(parts[i]);
+			}
+		}
+
+		if (hasChanged === true) {
+			if (typeof this.onWorkspaceChange === "function") {
+				this.onWorkspaceChange();
+			}
+		}
+
+		result = filtered.join("\n");
+		if (endsWithNewline === true && filtered.length > 0) {
+			result = result + "\n";
+		}
+
+		return result;
+	}
+
+	/**
+	 * Starts a background inotify watcher inside CheerpX for targetDir.
+	 * @param {string} targetDir - Directory path to watch.
+	 * @returns {Promise<void>}
+	 */
+	async startWorkspaceWatcher (targetDir) {
+		let watchCmd = "";
+		let runOpt = null;
+
+		if (this.cx === null) {
+			return;
+		}
+
+		runOpt = {
+			env: this.runOpt.env,
+			cwd: targetDir,
+			uid: this.runOpt.uid,
+			gid: this.runOpt.gid
+		};
+
+		watchCmd = [
+			`mkdir -p "${targetDir}"`,
+			`prev_snap=""`,
+			`while true; do`,
+			`  cur_snap=$(find "${targetDir}" -printf '%y %p %T@ %s\n' 2>/dev/null || ls -laR "${targetDir}" 2>/dev/null)`,
+			`  if [ "$cur_snap" != "$prev_snap" ]; then`,
+			`    prev_snap="$cur_snap"`,
+			`    echo "${WORKSPACE_CHANGE_MARKER}"`,
+			`  fi`,
+			`  sleep 0.5`,
+			`done`
+		].join("\n");
+
+		this.cx.run("/bin/sh", ["-c", watchCmd], runOpt).catch((err) => {
+			console.warn("[Watcher] Watch loop ended:", err);
+		});
 	}
 
 	/**
@@ -376,7 +483,7 @@ export class CheerpXRunner {
 	 * @param {Object} term - Terminal instance with `cols`, `rows`, `write`, and `onData`.
 	 * @param {string} imgPath - URL or path to the disk image for HttpBytesDevice.
 	 * @param {string} dbName - IndexedDB name for IDBDevice.
-	 * @param {Object} [overrideOptions] - Optional per-run overrides for `decCode` and `runOpt`.
+	 * @param {Object} [overrideOptions] - Optional per-run overrides for `decCode`, `runOpt`, and `onWorkspaceChange`.
 	 * @returns {Promise<void>}
 	 */
 	async runProcess (exPath, args, term, imgPath, dbName, overrideOptions) {
@@ -388,6 +495,7 @@ export class CheerpXRunner {
 		let decCode = "";
 		let runOpt = null;
 		let txt = "";
+		let cleanedTxt = "";
 		let normd = "";
 		let bData = null;
 		let j = 0;
@@ -403,6 +511,9 @@ export class CheerpXRunner {
 		if (overrideOptions !== undefined) {
 			if (overrideOptions.decCode !== undefined) {
 				decCode = overrideOptions.decCode;
+			}
+			if (typeof overrideOptions.onWorkspaceChange === "function") {
+				this.onWorkspaceChange = overrideOptions.onWorkspaceChange;
 			}
 			this._applyRunOptions(runOpt, overrideOptions.runOpt);
 		}
@@ -444,7 +555,11 @@ export class CheerpXRunner {
 					if (this.isSilent) {
 						return;
 					}
-					normd = txt.replace(/\n/g, "\r\n");
+					cleanedTxt = this._consumeChangeMarkers(txt);
+					if (cleanedTxt === "") {
+						return;
+					}
+					normd = cleanedTxt.replace(/\n/g, "\r\n");
 					term.write(normd);
 				},
 				term.cols,

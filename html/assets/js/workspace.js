@@ -26,6 +26,9 @@ const DEFAULT_LANG = "c";
 const EDITOR_LAYOUT_DELAY_MS = 50;
 const ROOT_DIR = "/workspace";
 const CHEERPX_CHECK_INTERVAL_MS = 1000;
+const SYNC_DEBOUNCE_MS = 250;
+const INPUT_COOLDOWN_MS = 250;
+const MAX_SYNC_WAIT_MS = 1500;
 
 self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
@@ -56,6 +59,11 @@ export class WorkspaceManager {
 		this.termMgr = new TerminalManager();
 		this.treeMgr = new FileTreeManager(this);
 		this.isWatching = false;
+		this.hasPendingSync = false;
+		this.firstPendingAt = 0;
+		this.lastTerminalInputAt = 0;
+		this.syncTimerId = null;
+		this.isSyncing = false;
 	}
 
 	/**
@@ -65,7 +73,9 @@ export class WorkspaceManager {
 	async init () {
 		let params = null;
 		let badgeElm = null;
+		let self = null;
 
+		self = this;
 		params = new URLSearchParams(window.location.search);
 		this.lang = params.get("lang");
 		if (this.lang === null) {
@@ -76,13 +86,19 @@ export class WorkspaceManager {
 		this.ui.updateBadgeLoading(badgeElm, this.lang);
 
 		this.termMgr.init();
+		if (this.termMgr !== null && this.termMgr.term !== null) {
+			this.termMgr.term.onData(() => {
+				self.lastTerminalInputAt = Date.now();
+			});
+		}
+
 		this.initDockPanel();
 		this.treeMgr.init();
 		this.initEventListeners();
 
 		await this.startCheerpX(badgeElm);
 
-		this.startInotifyWatch();
+		await this.startInotifyWatch();
 	}
 
 	/**
@@ -111,7 +127,12 @@ export class WorkspaceManager {
 		let self = null;
 
 		try {
-			this.runner = new CheerpXRunner();
+			self = this;
+			this.runner = new CheerpXRunner({
+				onWorkspaceChange: () => {
+					self.handleWorkspaceChangeSignal();
+				}
+			});
 			imgPath = `/dist/rootfs-${this.lang}.ext2`;
 			dbName = `cache_${this.lang}`;
 
@@ -125,7 +146,6 @@ export class WorkspaceManager {
 
 			this.runner.runProcess("/bin/sh", [], this.termMgr.term, imgPath, dbName, overrideOptions);
 
-			self = this;
 			await new Promise((resolve) => {
 				checkInterval = setInterval(() => {
 					if (self.runner !== null) {
@@ -142,6 +162,70 @@ export class WorkspaceManager {
 			console.error("Error starting CheerpX:", err);
 			this.ui.updateBadgeError(badgeElm, err.message);
 		}
+	}
+
+	/**
+	 * Marks workspace as dirty and schedules a deferred sync when not busy or typing.
+	 */
+	handleWorkspaceChangeSignal () {
+		let now = 0;
+
+		now = Date.now();
+		if (this.hasPendingSync === false) {
+			this.firstPendingAt = now;
+		}
+		this.hasPendingSync = true;
+		this._scheduleDeferredSync();
+	}
+
+	/**
+	 * Schedules syncFromCheerpX while deferring during active sync or recent terminal input.
+	 */
+	_scheduleDeferredSync () {
+		let self = null;
+
+		self = this;
+		if (this.syncTimerId !== null) {
+			clearTimeout(this.syncTimerId);
+			this.syncTimerId = null;
+		}
+
+		this.syncTimerId = setTimeout(async () => {
+			let now = 0;
+			let elapsedSinceInput = 0;
+			let totalWaited = 0;
+
+			self.syncTimerId = null;
+			if (self.hasPendingSync === false) {
+				return;
+			}
+
+			now = Date.now();
+			totalWaited = now - self.firstPendingAt;
+
+			if (self.isSyncing === true) {
+				self._scheduleDeferredSync();
+				return;
+			}
+
+			elapsedSinceInput = now - self.lastTerminalInputAt;
+			if (elapsedSinceInput < INPUT_COOLDOWN_MS && totalWaited < MAX_SYNC_WAIT_MS) {
+				self._scheduleDeferredSync();
+				return;
+			}
+
+			self.hasPendingSync = false;
+			self.firstPendingAt = 0;
+			self.isSyncing = true;
+			try {
+				await self.syncFromCheerpX();
+			} finally {
+				self.isSyncing = false;
+				if (self.hasPendingSync === true) {
+					self._scheduleDeferredSync();
+				}
+			}
+		}, SYNC_DEBOUNCE_MS);
 	}
 
 	/**
@@ -177,7 +261,7 @@ export class WorkspaceManager {
 	}
 
 	/**
-	 * Marks file watching state (currently disabled for performance and stability).
+	 * Starts watching ROOT_DIR using inotify inside CheerpX.
 	 * @returns {Promise<void>}
 	 */
 	async startInotifyWatch () {
@@ -186,8 +270,13 @@ export class WorkspaceManager {
 			return;
 		}
 
+		if (this.runner === null || this.runner.cx === null) {
+			return;
+		}
+
 		this.isWatching = true;
-		console.log("[Watcher] Watcher disabled for maximum performance and stability.");
+		await this.runner.startWorkspaceWatcher(ROOT_DIR);
+		console.log("[Watcher] Started watching:", ROOT_DIR);
 	}
 
 	/**
