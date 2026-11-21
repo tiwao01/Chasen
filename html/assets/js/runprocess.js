@@ -225,6 +225,64 @@ export class CheerpXRunner {
 	}
 
 	/**
+	 * Creates a directory (including parent directories) inside the CheerpX filesystem.
+	 * @param {string} dirPath - Directory path to create.
+	 * @returns {Promise<void>}
+	 */
+	async createDirectory (dirPath) {
+		let cmd = "";
+
+		if (this.cx === null) {
+			throw new Error("CheerpX is not initialized");
+		}
+
+		this.isSilent = true;
+		cmd = `mkdir -p "${dirPath}" && sync >/dev/null 2>&1`;
+		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
+		this.isSilent = false;
+	}
+
+	/**
+	 * Checks whether a file or directory exists at targetPath inside CheerpX.
+	 * @param {string} targetPath - Target path to check.
+	 * @returns {Promise<boolean>} True if the path exists.
+	 */
+	async pathExists (targetPath) {
+		let cmd = "";
+		let res = "";
+
+		if (this.cx === null) {
+			throw new Error("CheerpX is not initialized");
+		}
+
+		cmd = `if [ -e "${targetPath}" ]; then echo "YES"; else echo "NO"; fi`;
+		res = await this.execSilentOutput(cmd);
+		res = res.trim();
+
+		return res === "YES";
+	}
+
+	/**
+	 * Checks whether targetPath is a directory inside CheerpX.
+	 * @param {string} targetPath - Target path to check.
+	 * @returns {Promise<boolean>} True if the path is a directory.
+	 */
+	async isDirectory (targetPath) {
+		let cmd = "";
+		let res = "";
+
+		if (this.cx === null) {
+			throw new Error("CheerpX is not initialized");
+		}
+
+		cmd = `if [ -d "${targetPath}" ]; then echo "YES"; else echo "NO"; fi`;
+		res = await this.execSilentOutput(cmd);
+		res = res.trim();
+
+		return res === "YES";
+	}
+
+	/**
 	 * Removes a file or directory inside the CheerpX filesystem.
 	 * @param {string} filePath - Target path to remove.
 	 * @returns {Promise<void>}
@@ -256,7 +314,26 @@ export class CheerpXRunner {
 		}
 
 		this.isSilent = true;
-		cmd = `cp -r "${srcPath}" "${destPath}" && sync >/dev/null 2>&1`;
+		cmd = `mkdir -p "$(dirname "${destPath}")" && cp -r "${srcPath}" "${destPath}" && sync >/dev/null 2>&1`;
+		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
+		this.isSilent = false;
+	}
+
+	/**
+	 * Moves (renames or relocates) a file or directory inside the CheerpX filesystem.
+	 * @param {string} srcPath - Source path.
+	 * @param {string} destPath - Destination path.
+	 * @returns {Promise<void>}
+	 */
+	async movePath (srcPath, destPath) {
+		let cmd = "";
+
+		if (this.cx === null) {
+			throw new Error("CheerpX is not initialized");
+		}
+
+		this.isSilent = true;
+		cmd = `mkdir -p "$(dirname "${destPath}")" && mv "${srcPath}" "${destPath}" && sync >/dev/null 2>&1`;
 		await this.cx.run("/bin/sh", ["-c", cmd], this.runOpt);
 		this.isSilent = false;
 	}

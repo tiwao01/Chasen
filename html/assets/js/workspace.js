@@ -4,6 +4,7 @@ import { DockPanel, Widget } from "@lumino/widgets";
 import { EditorWidget } from "./editor-widget.js";
 import { TerminalManager } from "./terminal-manager.js";
 import { FileTreeManager } from "./file-tree-manager.js";
+import { TabManager } from "./tab-manager.js";
 
 const EXT_LANG_MAP = {
 	c: "c",
@@ -58,6 +59,7 @@ export class WorkspaceManager {
 		this.ui = new UiHelper();
 		this.termMgr = new TerminalManager();
 		this.treeMgr = new FileTreeManager(this);
+		this.tabMgr = new TabManager(this);
 		this.isWatching = false;
 		this.hasPendingSync = false;
 		this.firstPendingAt = 0;
@@ -93,6 +95,7 @@ export class WorkspaceManager {
 		}
 
 		this.initDockPanel();
+		this.tabMgr.init();
 		this.treeMgr.init();
 		this.initEventListeners();
 
@@ -419,6 +422,388 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Gets the latest content of a file from an open editor widget if available, or fileContents cache.
+	 * @param {string} filePath - File path to read.
+	 * @returns {string} Latest file content.
+	 */
+	_getLatestFileContent (filePath) {
+		let widget = null;
+		let editorVal = "";
+
+		if (this.openWidgets instanceof Map && this.openWidgets.has(filePath) === true) {
+			widget = this.openWidgets.get(filePath);
+			if (widget !== null && widget !== undefined) {
+				if (typeof widget.getValue === "function") {
+					editorVal = widget.getValue();
+					if (this.fileContents instanceof Map) {
+						this.fileContents.set(filePath, editorVal);
+					}
+					return editorVal;
+				}
+			}
+		}
+
+		if (this.fileContents instanceof Map && this.fileContents.has(filePath) === true) {
+			return this.fileContents.get(filePath);
+		}
+		return "";
+	}
+
+	/**
+	 * Updates an already-open editor widget's content for destPath if open.
+	 * @param {string} destPath - Destination file path.
+	 * @param {string} content - New file content.
+	 * @returns {void}
+	 */
+	_updateOpenEditorContent (destPath, content) {
+		let widget = null;
+
+		if (!(this.openWidgets instanceof Map)) {
+			return;
+		}
+		if (this.openWidgets.has(destPath) === false) {
+			return;
+		}
+		widget = this.openWidgets.get(destPath);
+		if (widget === null || widget === undefined) {
+			return;
+		}
+		if (typeof widget.setEditorContent === "function") {
+			widget.setEditorContent(content, true);
+		} else if (widget.editor !== null && widget.editor !== undefined && typeof widget.editor.setValue === "function") {
+			widget.editor.setValue(content);
+		}
+	}
+
+	/**
+	 * Copies or moves a file or folder into destDir and synchronizes the workspace.
+	 * @param {"copy"|"move"} mode - Operation mode.
+	 * @param {string} sourcePath - Source file or directory path.
+	 * @param {string} destDir - Target directory path.
+	 * @param {boolean} isFolder - True if sourcePath is a directory.
+	 * @returns {Promise<void>}
+	 */
+	async transferItem (mode, sourcePath, destDir, isFolder) {
+		let normSrc = "";
+		let normDestDir = "";
+		let baseName = "";
+		let destPath = "";
+		let exists = false;
+		let shouldOverwrite = false;
+
+		if (this.runner === null || this.runner.cx === null) {
+			return;
+		}
+		if (this.treeMgr !== null && this.treeMgr.canTransfer(sourcePath, destDir, mode) === false) {
+			return;
+		}
+
+		normSrc = sourcePath.replace(/\/+$/, "");
+		normDestDir = destDir.replace(/\/+$/, "");
+		baseName = normSrc.split("/").pop();
+		destPath = normDestDir + "/" + baseName;
+
+		if (normSrc === destPath) {
+			return;
+		}
+
+		if (typeof this.runner.pathExists === "function") {
+			exists = await this.runner.pathExists(destPath);
+			if (exists === true) {
+				shouldOverwrite = confirm(`"${destPath}" はすでに存在します。上書きしますか？`);
+				if (shouldOverwrite === false) {
+					return;
+				}
+			}
+		}
+
+		this.isSyncing = true;
+		try {
+			if (mode === "copy") {
+				if (exists === true) {
+					await this.runner.removeFile(destPath);
+				}
+				await this.runner.copyFile(normSrc, destPath);
+				if (isFolder === false) {
+					this._copySingleFileCacheAndEditor(normSrc, destPath);
+				} else {
+					this._copyCachedEntries(normSrc, destPath, true);
+				}
+			} else {
+				if (exists === true) {
+					await this.runner.removeFile(destPath);
+				}
+				if (typeof this.runner.movePath === "function") {
+					await this.runner.movePath(normSrc, destPath);
+				} else {
+					await this.runner.copyFile(normSrc, destPath);
+					await this.runner.removeFile(normSrc);
+				}
+				this._migrateCachedAndOpenEntries(normSrc, destPath, isFolder === true);
+			}
+
+			if (this.treeMgr !== null) {
+				this.treeMgr.expandedPaths.add(normDestDir);
+				if (isFolder === true) {
+					this.treeMgr.expandedPaths.add(destPath);
+				}
+			}
+
+			await this.syncFromCheerpX();
+		} finally {
+			this.isSyncing = false;
+			if (this.hasPendingSync === true) {
+				this._scheduleDeferredSync();
+			}
+		}
+	}
+
+	/**
+	 * Copies single-file content into fileContents and updates open editor if destPath is open.
+	 * @param {string} srcPath - Source file path.
+	 * @param {string} destPath - Destination file path.
+	 * @returns {void}
+	 */
+	_copySingleFileCacheAndEditor (srcPath, destPath) {
+		let content = "";
+
+		content = this._getLatestFileContent(srcPath);
+		if (this.fileContents instanceof Map) {
+			this.fileContents.set(destPath, content);
+		}
+		this._updateOpenEditorContent(destPath, content);
+	}
+
+	/**
+	 * Renames a file or folder from oldPath to newPath and updates open widgets and caches.
+	 * @param {string} oldPath - Current path.
+	 * @param {string} newPath - New path.
+	 * @param {boolean} isFolder - True if target is a folder.
+	 * @returns {Promise<void>}
+	 */
+	async renamePath (oldPath, newPath, isFolder) {
+		let normOld = "";
+		let normNew = "";
+		let parentDir = "";
+
+		if (this.runner === null || this.runner.cx === null) {
+			return;
+		}
+		normOld = oldPath.replace(/\/+$/, "");
+		normNew = newPath.replace(/\/+$/, "");
+		if (normOld === normNew) {
+			return;
+		}
+
+		this.isSyncing = true;
+		try {
+			if (typeof this.runner.movePath === "function") {
+				await this.runner.movePath(normOld, normNew);
+			} else {
+				await this.runner.copyFile(normOld, normNew);
+				await this.runner.removeFile(normOld);
+			}
+			this._migrateCachedAndOpenEntries(normOld, normNew, isFolder === true);
+
+			parentDir = normNew.substring(0, normNew.lastIndexOf("/"));
+			if (parentDir !== "" && this.treeMgr !== null) {
+				this.treeMgr.expandedPaths.add(parentDir);
+			}
+			await this.syncFromCheerpX();
+		} finally {
+			this.isSyncing = false;
+			if (this.hasPendingSync === true) {
+				this._scheduleDeferredSync();
+			}
+		}
+	}
+
+	/**
+	 * Copies cached fileContents entries from srcPath to destPath.
+	 * @param {string} srcPath - Source path.
+	 * @param {string} destPath - Destination path.
+	 * @param {boolean} isFolder - True if copying a directory.
+	 * @returns {void}
+	 */
+	_copyCachedEntries (srcPath, destPath, isFolder) {
+		let entries = [];
+		let i = 0;
+		let key = "";
+		let val = "";
+		let mappedKey = "";
+
+		if (!(this.fileContents instanceof Map)) {
+			return;
+		}
+
+		if (isFolder === false) {
+			if (this.fileContents.has(srcPath) === true) {
+				this.fileContents.set(destPath, this.fileContents.get(srcPath));
+			}
+			return;
+		}
+
+		entries = Array.from(this.fileContents.entries());
+		for (i = 0; i < entries.length; i++) {
+			key = entries[i][0];
+			val = entries[i][1];
+			if (key.startsWith(srcPath + "/")) {
+				mappedKey = destPath + key.substring(srcPath.length);
+				this.fileContents.set(mappedKey, val);
+			}
+		}
+	}
+
+	/**
+	 * Migrates fileContents and openWidgets when a file or folder is moved or renamed.
+	 * @param {string} oldPath - Previous path.
+	 * @param {string} newPath - New path.
+	 * @param {boolean} isFolder - True if moving a directory.
+	 * @returns {void}
+	 */
+	_migrateCachedAndOpenEntries (oldPath, newPath, isFolder) {
+		let entries = [];
+		let i = 0;
+		let key = "";
+		let val = "";
+		let mappedKey = "";
+		let widgetEntries = [];
+		let widget = null;
+
+		if (this.fileContents instanceof Map) {
+			if (isFolder === false) {
+				if (this.fileContents.has(oldPath) === true) {
+					val = this.fileContents.get(oldPath);
+					this.fileContents.delete(oldPath);
+					this.fileContents.set(newPath, val);
+				}
+			} else {
+				entries = Array.from(this.fileContents.entries());
+				for (i = 0; i < entries.length; i++) {
+					key = entries[i][0];
+					val = entries[i][1];
+					if (key.startsWith(oldPath + "/")) {
+						mappedKey = newPath + key.substring(oldPath.length);
+						this.fileContents.delete(key);
+						this.fileContents.set(mappedKey, val);
+					}
+				}
+			}
+		}
+
+		widgetEntries = Array.from(this.openWidgets.entries());
+		for (i = 0; i < widgetEntries.length; i++) {
+			key = widgetEntries[i][0];
+			widget = widgetEntries[i][1];
+			mappedKey = "";
+
+			if (isFolder === false && key === oldPath) {
+				mappedKey = newPath;
+			} else if (isFolder === true && key.startsWith(oldPath + "/")) {
+				mappedKey = newPath + key.substring(oldPath.length);
+			}
+
+			if (mappedKey !== "") {
+				this.openWidgets.delete(key);
+				this.openWidgets.set(mappedKey, widget);
+				if (widget !== null && widget !== undefined) {
+					widget.title.label = mappedKey.split("/").pop();
+					widget.fp = mappedKey;
+					widget.fn = mappedKey.split("/").pop();
+					if ("filePath" in widget) {
+						widget.filePath = mappedKey;
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Closes an open tab for the given file path.
+	 * @param {string} path - File path to close.
+	 * @returns {boolean} True if closed, false if canceled.
+	 */
+	closeFile (path) {
+		let widget = null;
+		let shouldDiscard = false;
+		let remaining = [];
+		let nextWidget = null;
+
+		if (!(this.openWidgets instanceof Map) || this.openWidgets.has(path) === false) {
+			return false;
+		}
+
+		widget = this.openWidgets.get(path);
+		if (widget !== null && widget !== undefined && widget.isDirty === true) {
+			shouldDiscard = confirm(`"${path}" には保存されていない変更があります。破棄して閉じますか？`);
+			if (shouldDiscard === false) {
+				return false;
+			}
+		}
+
+		this.openWidgets.delete(path);
+		if (widget !== null && widget !== undefined) {
+			widget.dispose();
+		}
+
+		if (this.activeWidget === widget) {
+			this.activeWidget = null;
+			remaining = Array.from(this.openWidgets.values());
+			if (remaining.length > 0) {
+				nextWidget = remaining[remaining.length - 1];
+				this.dockPanel.activateWidget(nextWidget);
+				this.activeWidget = nextWidget;
+				if (nextWidget.editor !== null && nextWidget.editor !== undefined) {
+					nextWidget.editor.layout();
+				}
+			}
+		}
+
+		if (this.tabMgr !== null && this.tabMgr !== undefined) {
+			this.tabMgr.render();
+		}
+		return true;
+	}
+
+	/**
+	 * Closes all open tabs except the specified keepPath.
+	 * @param {string} keepPath - File path to keep open.
+	 * @returns {void}
+	 */
+	closeOtherFiles (keepPath) {
+		let keys = [];
+		let i = 0;
+		let k = "";
+		let keepWidget = null;
+
+		if (!(this.openWidgets instanceof Map)) {
+			return;
+		}
+
+		keys = Array.from(this.openWidgets.keys());
+		for (i = 0; i < keys.length; i++) {
+			k = keys[i];
+			if (k === keepPath) {
+				continue;
+			}
+			this.closeFile(k);
+		}
+
+		if (this.openWidgets.has(keepPath) === true) {
+			keepWidget = this.openWidgets.get(keepPath);
+			this.dockPanel.activateWidget(keepWidget);
+			this.activeWidget = keepWidget;
+			if (keepWidget !== null && keepWidget.editor !== null && keepWidget.editor !== undefined) {
+				keepWidget.editor.layout();
+			}
+		}
+
+		if (this.tabMgr !== null && this.tabMgr !== undefined) {
+			this.tabMgr.render();
+		}
+	}
+
+	/**
 	 * Manually synchronizes workspace files and refreshes the file tree.
 	 * @returns {Promise<void>}
 	 */
@@ -452,6 +837,9 @@ export class WorkspaceManager {
 			if (widget.editor !== null) {
 				widget.editor.layout();
 			}
+			if (this.tabMgr !== null && this.tabMgr !== undefined) {
+				this.tabMgr.render();
+			}
 			return;
 		}
 
@@ -471,11 +859,18 @@ export class WorkspaceManager {
 		widget.title.closable = true;
 		widget.disposed.connect(() => {
 			this.openWidgets.delete(path);
+			if (this.tabMgr !== null && this.tabMgr !== undefined) {
+				this.tabMgr.render();
+			}
 		});
 
 		this.dockPanel.addWidget(widget);
 		this.dockPanel.activateWidget(widget);
 		this.activeWidget = widget;
+
+		if (this.tabMgr !== null && this.tabMgr !== undefined) {
+			this.tabMgr.render();
+		}
 
 		setTimeout(() => {
 			if (widget.editor !== null) {

@@ -23,18 +23,24 @@
   --ide-text-bright: #ffffff;
   --ide-accent-primary: #0e639c;
   --ide-accent-border: #1177bb;
+  --ide-accent-active: #007fd4;
+  --ide-accent-menu: #094771;
+  --ide-dirty-color: #e2c08d;
 
   /* Borders, Scrollbars & Shadows */
   --ide-border-light: #555555;
+  --ide-border-menu: #454545;
   --ide-scrollbar-thumb: #424242;
   --ide-scrollbar-thumb-hover: #4f4f4f;
   --ide-shadow-toast: rgba(0, 0, 0, 0.3);
+  --ide-shadow-menu: rgba(0, 0, 0, 0.45);
 
   /* Dimensions */
   --border-radius: 4px;
   --border-radius-lg: 6px;
   --topbar-height: 44px;
   --sidebar-width: 240px;
+  --tabbar-height: 36px;
 }
 
 /* Base & Reset */
@@ -122,6 +128,7 @@ body {
 
 .ide-main-pane {
   flex-grow: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -129,16 +136,119 @@ body {
   background: var(--ide-bg-editor);
 }
 
-#dock-container {
-  flex-grow: 1;
+/* Editor Tab Bar */
+.editor-tab-bar {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  background-color: var(--ide-bg-base);
+  border-bottom: 1px solid var(--ide-bg-surface);
+  height: var(--tabbar-height);
+  min-height: var(--tabbar-height);
+  max-height: var(--tabbar-height);
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ide-scrollbar-thumb) var(--ide-bg-base);
+}
+
+.editor-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 100%;
+  background-color: var(--ide-bg-tab);
+  color: var(--ide-text-tab);
+  border-right: 1px solid var(--ide-bg-editor);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.editor-tab:hover {
+  background-color: var(--ide-bg-hover);
+  color: var(--ide-text-main);
+}
+
+.editor-tab.active {
+  background-color: var(--ide-bg-editor);
+  color: var(--ide-text-bright);
+  border-top: 2px solid var(--ide-accent-active);
+}
+
+.editor-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 360px;
+}
+
+.editor-tab-dirty {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ide-dirty-color);
+  font-size: 10px !important;
+}
+
+.editor-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 2px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 16px !important;
+}
+
+.editor-tab-close:hover {
+  background-color: var(--ide-bg-btn-hover);
+  color: var(--ide-text-bright);
+}
+
+.editor-tab-context-menu {
+  position: fixed;
+  z-index: 9999;
+  background-color: var(--ide-bg-base);
+  border: 1px solid var(--ide-border-menu);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px var(--ide-shadow-menu);
+  padding: 4px 0;
+  min-width: 160px;
+}
+
+.editor-tab-context-item {
+  display: block;
   width: 100%;
-  height: 60%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--ide-text-main);
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.editor-tab-context-item:hover {
+  background-color: var(--ide-accent-menu);
+  color: var(--ide-text-bright);
+}
+
+#dock-container {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
   position: relative;
 }
 
 #terminal-container {
   width: 100%;
   height: 40%;
+  flex-shrink: 0;
   background: var(--ide-bg-terminal);
   border-top: 1px solid var(--ide-bg-surface);
   padding: 4px;

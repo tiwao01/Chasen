@@ -11,16 +11,19 @@ export class EditorWidget extends Widget {
 	 * @param {String} content - file content
 	 * @param {String} lang - language
 	 * @param {String} fn - file name
-	 * @param {WorkspaceManager} mgr - workdpace manager instance
+	 * @param {WorkspaceManager} mgr - workspace manager instance
 	 */
 	constructor (fp, content, lang, fn, mgr) {
 		super();
 		this.fp = fp;
 		this.content = content;
+		this.savedContent = content;
 		this.fn = fn;
 		this.lang = lang;
 		this.mgr = mgr;
 		this.editor = null;
+		this.isDirty = false;
+		this._isProgrammaticSet = false;
 
 		this.setFlag (Widget.Flag.DisallowLayout);
 		this.title.label = fn;
@@ -49,18 +52,66 @@ export class EditorWidget extends Widget {
 			automaticLayout: true
 		});
 
+		this.editor.onDidChangeModelContent (() => {
+			let currentVal = "";
+
+			if (self._isProgrammaticSet === true) {
+				return;
+			}
+			currentVal = self.getValue ();
+			self.content = currentVal;
+			self.isDirty = currentVal !== self.savedContent;
+			if (self.mgr !== null && self.mgr !== undefined && self.mgr.tabMgr !== null && self.mgr.tabMgr !== undefined) {
+				self.mgr.tabMgr.render ();
+			}
+		});
+
 		this.editor.addAction ({
 			id: "save-file-action",
 			label: "Save File",
 			keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
 			run: async () => {
 				let code = "";
+
 				code = self.editor.getValue ();
+				self.content = code;
+				self.savedContent = code;
+				self.isDirty = false;
 				self.mgr.fileContents.set (self.fp, code);
 				await self.mgr.runner.writeFile (self.fp, code);
+				if (self.mgr.tabMgr !== null && self.mgr.tabMgr !== undefined) {
+					self.mgr.tabMgr.render ();
+				}
 				self.mgr.ui.showToast (toastElm, "ファイルを保存しました");
 			}
 		});
+	}
+
+	/**
+	 * Updates editor value programmatically without marking dirty unless needed.
+	 * @param {string} newContent - New content to set.
+	 * @param {boolean} [markAsSaved=true] - True if newContent becomes the baseline saved content.
+	 * @returns {void}
+	 */
+	setEditorContent (newContent, markAsSaved) {
+		let shouldMarkSaved = true;
+
+		if (markAsSaved !== undefined) {
+			shouldMarkSaved = markAsSaved === true;
+		}
+		this.content = newContent;
+		if (shouldMarkSaved === true) {
+			this.savedContent = newContent;
+			this.isDirty = false;
+		}
+		if (this.editor !== null && typeof this.editor.setValue === "function") {
+			this._isProgrammaticSet = true;
+			this.editor.setValue (newContent);
+			this._isProgrammaticSet = false;
+			if (shouldMarkSaved === false) {
+				this.isDirty = newContent !== this.savedContent;
+			}
+		}
 	}
 
 	/**
@@ -76,7 +127,7 @@ export class EditorWidget extends Widget {
 
 	/**
 	 * Get editor value
-	 * @returns 
+	 * @returns {string} Current editor text
 	 */
 	getValue () {
 		if (this.editor !== null) {
