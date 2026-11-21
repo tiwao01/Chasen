@@ -284,6 +284,9 @@ export class WorkspaceManager {
 	 */
 	initEventListeners () {
 		let newFileElm = null;
+		let newFolderElm = null;
+		let refreshElm = null;
+		let collapseElm = null;
 		let self = null;
 
 		self = this;
@@ -291,6 +294,27 @@ export class WorkspaceManager {
 		if (newFileElm !== null) {
 			newFileElm.addEventListener("click", () => {
 				self.handleNewFile();
+			});
+		}
+
+		newFolderElm = document.getElementById("btn-new-folder");
+		if (newFolderElm !== null) {
+			newFolderElm.addEventListener("click", () => {
+				self.handleNewFolder();
+			});
+		}
+
+		refreshElm = document.getElementById("btn-refresh-tree");
+		if (refreshElm !== null) {
+			refreshElm.addEventListener("click", () => {
+				self.handleRefreshTree();
+			});
+		}
+
+		collapseElm = document.getElementById("btn-collapse-all");
+		if (collapseElm !== null) {
+			collapseElm.addEventListener("click", () => {
+				self.handleCollapseAll();
 			});
 		}
 
@@ -315,17 +339,25 @@ export class WorkspaceManager {
 	 */
 	async handleNewFile () {
 		let fileName = "";
+		let baseDir = "";
+		let cleanName = "";
 		let fullPath = "";
 
 		fileName = prompt("新規ファイル名を入力してください:");
 		if (fileName === null) {
 			return;
 		}
-		if (fileName.trim() === "") {
+		cleanName = fileName.trim().replace(/^\/+/, "");
+		if (cleanName === "") {
 			return;
 		}
 
-		fullPath = ROOT_DIR + "/" + fileName;
+		baseDir = ROOT_DIR;
+		if (this.treeMgr !== null) {
+			baseDir = this.treeMgr.getTargetDirectory();
+		}
+		fullPath = baseDir + "/" + cleanName;
+
 		if (!(this.fileContents instanceof Map)) {
 			this.fileContents = new Map();
 		}
@@ -337,6 +369,70 @@ export class WorkspaceManager {
 
 		await this.syncFromCheerpX();
 		this.openFile(fullPath);
+	}
+
+	/**
+	 * Prompts for a new directory name, creates it in CheerpX, and syncs the workspace.
+	 * @returns {Promise<void>}
+	 */
+	async handleNewFolder () {
+		let folderName = "";
+		let cleanName = "";
+		let baseDir = "";
+		let fullPath = "";
+		let keepFilePath = "";
+
+		folderName = prompt("新規ディレクトリ名を入力してください:");
+		if (folderName === null) {
+			return;
+		}
+		cleanName = folderName.trim().replace(/^\/+|\/+$/g, "");
+		if (cleanName === "") {
+			return;
+		}
+
+		baseDir = ROOT_DIR;
+		if (this.treeMgr !== null) {
+			baseDir = this.treeMgr.getTargetDirectory();
+			this.treeMgr.expandedPaths.add(baseDir);
+		}
+		fullPath = baseDir + "/" + cleanName;
+
+		if (this.runner !== null) {
+			if (typeof this.runner.createDirectory === "function") {
+				await this.runner.createDirectory(fullPath);
+			} else if (typeof this.runner.mkdir === "function") {
+				await this.runner.mkdir(fullPath);
+			} else {
+				keepFilePath = fullPath + "/.gitkeep";
+				await this.runner.writeFile(keepFilePath, "");
+				if (typeof this.runner.removeFile === "function") {
+					await this.runner.removeFile(keepFilePath);
+				}
+			}
+		}
+
+		if (this.treeMgr !== null) {
+			this.treeMgr.expandedPaths.add(fullPath);
+		}
+		await this.syncFromCheerpX();
+	}
+
+	/**
+	 * Manually synchronizes workspace files and refreshes the file tree.
+	 * @returns {Promise<void>}
+	 */
+	async handleRefreshTree () {
+		await this.syncFromCheerpX();
+	}
+
+	/**
+	 * Collapses all folders in the file tree.
+	 */
+	handleCollapseAll () {
+		if (this.treeMgr !== null) {
+			this.treeMgr.collapseAll();
+		}
 	}
 
 	/**

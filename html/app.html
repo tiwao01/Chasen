@@ -52,9 +52,20 @@
 			<aside class="ide-sidebar" id="sidebar-container">
 				<div class="sidebar-header">
 					<span>Files</span>
-					<button id="btn-new-file" class="btn btn-icon" title="New File">
-						<span class="material-symbols-outlined">add</span>
-					</button>
+					<div class="sidebar-actions">
+						<button id="btn-new-file" class="btn btn-icon" title="新しいファイル">
+							<span class="material-symbols-outlined">note_add</span>
+						</button>
+						<button id="btn-new-folder" class="btn btn-icon" title="新しいフォルダー">
+							<span class="material-symbols-outlined">create_new_folder</span>
+						</button>
+						<button id="btn-refresh-tree" class="btn btn-icon" title="エクスプローラーの最新の情報に更新">
+							<span class="material-symbols-outlined">refresh</span>
+						</button>
+						<button id="btn-collapse-all" class="btn btn-icon" title="エクスプローラーでフォルダーを折りたたむ">
+							<span class="material-symbols-outlined">collapse_all</span>
+						</button>
+					</div>
 				</div>
 				<div id="file-tree-container" class="file-tree-container dark"></div>
 			</aside>

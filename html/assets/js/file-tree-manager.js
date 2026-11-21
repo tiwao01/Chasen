@@ -14,6 +14,7 @@ export class FileTreeManager {
 		this.mgr = mgr;
 		this.tree = null;
 		this.expandedPaths = new Set ([ROOT_DIR]);
+		this.lastPaths = [];
 	}
 
 	/**
@@ -219,6 +220,7 @@ export class FileTreeManager {
 			return;
 		}
 
+		this.lastPaths = paths;
 		this.expandedPaths = this.captureExpandedPaths ();
 		this.expandedPaths.add (ROOT_DIR);
 
@@ -373,5 +375,66 @@ export class FileTreeManager {
 		}
 
 		return true;
+	}
+	
+	/**
+	 * Resolves the target directory path based on the currently active tree node.
+	 * @returns {string} Target directory path (defaults to ROOT_DIR).
+	 */
+	getTargetDirectory () {
+		let activeNode = null;
+		let nodePath = "";
+		let isFolder = false;
+		let lastSlash = -1;
+
+		if (this.tree === null) {
+			return ROOT_DIR;
+		}
+
+		activeNode = this.tree.getActiveNode ();
+		if (activeNode === null || activeNode === undefined) {
+			return ROOT_DIR;
+		}
+
+		nodePath = this.getNodePath (activeNode);
+		if (nodePath === "") {
+			return ROOT_DIR;
+		}
+
+		isFolder = false;
+		if (activeNode.folder === true) {
+			isFolder = true;
+		}
+		if (typeof activeNode.isFolder === "function") {
+			if (activeNode.isFolder () === true) {
+				isFolder = true;
+			}
+		}
+
+		if (isFolder === true) {
+			return nodePath.replace (/\/+$/, "");
+		}
+
+		lastSlash = nodePath.lastIndexOf ("/");
+		if (lastSlash <= 0) {
+			return ROOT_DIR;
+		}
+		return nodePath.substring (0, lastSlash);
+	}
+
+	/**
+	 * Collapses all subdirectories under ROOT_DIR while keeping ROOT_DIR expanded.
+	 * @returns {void}
+	 */
+	collapseAll () {
+		let treeData = [];
+
+		if (this.tree === null) {
+			return;
+		}
+
+		this.expandedPaths = new Set ([ROOT_DIR]);
+		treeData = this.buildTreeData (this.lastPaths);
+		this.tree.reload ({ source: treeData });
 	}
 }
