@@ -130,13 +130,27 @@ export class FileTreeManager {
 			activate: (e) => {
 				let filePath = "";
 
-				if (e.node === null || e.node === undefined || e.node.folder === true) {
+				if (e.node === null || e.node === undefined) {
 					return;
 				}
-				filePath = self.getNodePath (e.node);
-				if (filePath !== "") {
-					self.mgr.openFile (filePath);
+				if (e.node.folder === true) {
+					return;
 				}
+				if (typeof e.node.isFolder === "function") {
+					if (e.node.isFolder () === true) {
+						return;
+					}
+				}
+				filePath = self.getNodePath (e.node);
+				if (filePath === "" || filePath.endsWith ("/")) {
+					return;
+				}
+				if (self.mgr.fileContents instanceof Map) {
+					if (self.mgr.fileContents.has (filePath) === false) {
+						return;
+					}
+				}
+				self.mgr.openFile (filePath);
 			},
 			edit: {
 				save: (e) => {

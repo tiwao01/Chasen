@@ -25,7 +25,6 @@ const EXT_LANG_MAP = {
 const DEFAULT_LANG = "c";
 const EDITOR_LAYOUT_DELAY_MS = 50;
 const ROOT_DIR = "/workspace";
-const SYNC_INTERVAL_MS = 500;
 const CHEERPX_CHECK_INTERVAL_MS = 1000;
 
 self.MonacoEnvironment = {
@@ -39,7 +38,13 @@ self.MonacoEnvironment = {
 	}
 };
 
+/**
+ * Coordinates the workspace UI, Monaco editors, terminal, file tree, and CheerpX runtime.
+ */
 export class WorkspaceManager {
+	/**
+	 * Initializes workspace state and helper managers.
+	 */
 	constructor () {
 		this.runner = null;
 		this.dockPanel = null;
@@ -53,6 +58,10 @@ export class WorkspaceManager {
 		this.isWatching = false;
 	}
 
+	/**
+	 * Initializes UI components, event listeners, CheerpX runtime, and initial file sync.
+	 * @returns {Promise<void>}
+	 */
 	async init () {
 		let params = null;
 		let badgeElm = null;
@@ -76,6 +85,9 @@ export class WorkspaceManager {
 		this.startInotifyWatch();
 	}
 
+	/**
+	 * Creates and attaches the Lumino DockPanel to the workspace container.
+	 */
 	initDockPanel () {
 		let dockElm = null;
 
@@ -86,6 +98,11 @@ export class WorkspaceManager {
 		Widget.attach(this.dockPanel, dockElm);
 	}
 
+	/**
+	 * Starts the CheerpX Linux environment and waits until the instance is ready.
+	 * @param {HTMLElement|null} badgeElm - Status badge element to update.
+	 * @returns {Promise<void>}
+	 */
 	async startCheerpX (badgeElm) {
 		let imgPath = "";
 		let dbName = "";
@@ -127,6 +144,10 @@ export class WorkspaceManager {
 		}
 	}
 
+	/**
+	 * Syncs workspace files and paths from CheerpX into `fileContents` and the file tree.
+	 * @returns {Promise<void>}
+	 */
 	async syncFromCheerpX () {
 		let syncRes = null;
 		let paths = [];
@@ -144,12 +165,21 @@ export class WorkspaceManager {
 		paths = syncRes.paths;
 		fileMap = syncRes.fileMap;
 
-		this.fileContents = fileMap;
+		if (fileMap instanceof Map) {
+			this.fileContents = fileMap;
+		} else {
+			this.fileContents = new Map();
+		}
+
 		if (this.treeMgr !== null) {
 			this.treeMgr.reload(paths);
 		}
 	}
 
+	/**
+	 * Marks file watching state (currently disabled for performance and stability).
+	 * @returns {Promise<void>}
+	 */
 	async startInotifyWatch () {
 		if (this.isWatching) {
 			console.log("[Watcher] Already watching");
@@ -160,6 +190,9 @@ export class WorkspaceManager {
 		console.log("[Watcher] Watcher disabled for maximum performance and stability.");
 	}
 
+	/**
+	 * Registers DOM and window event listeners for workspace actions and layout updates.
+	 */
 	initEventListeners () {
 		let newFileElm = null;
 		let self = null;
@@ -177,6 +210,9 @@ export class WorkspaceManager {
 		});
 	}
 
+	/**
+	 * Updates terminal fit and dock panel layout on window resize.
+	 */
 	handleResize () {
 		this.termMgr.fit();
 		if (this.dockPanel !== null) {
@@ -184,6 +220,10 @@ export class WorkspaceManager {
 		}
 	}
 
+	/**
+	 * Prompts for a new file name, creates it in CheerpX, syncs the workspace, and opens it.
+	 * @returns {Promise<void>}
+	 */
 	async handleNewFile () {
 		let fileName = "";
 		let fullPath = "";
@@ -197,6 +237,9 @@ export class WorkspaceManager {
 		}
 
 		fullPath = ROOT_DIR + "/" + fileName;
+		if (!(this.fileContents instanceof Map)) {
+			this.fileContents = new Map();
+		}
 		this.fileContents.set(fullPath, "");
 
 		if (this.runner !== null) {
@@ -207,6 +250,10 @@ export class WorkspaceManager {
 		this.openFile(fullPath);
 	}
 
+	/**
+	 * Opens a file in a Monaco editor widget inside the dock panel or activates an existing one.
+	 * @param {string} path - Full file path to open.
+	 */
 	openFile (path) {
 		let widget = null;
 		let content = "";
@@ -223,7 +270,9 @@ export class WorkspaceManager {
 			return;
 		}
 
-		content = this.fileContents.get(path);
+		if (this.fileContents instanceof Map) {
+			content = this.fileContents.get(path);
+		}
 		if (content === undefined) {
 			content = "";
 		}
@@ -250,6 +299,11 @@ export class WorkspaceManager {
 		}, EDITOR_LAYOUT_DELAY_MS);
 	}
 
+	/**
+	 * Detects the Monaco language identifier from a file name extension.
+	 * @param {string|null} fileName - Target file name.
+	 * @returns {string} Monaco language ID or "plaintext".
+	 */
 	detectLanguage (fileName) {
 		let ext = "";
 		let lang = "";

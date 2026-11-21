@@ -8,13 +8,15 @@ export class EditorWidget extends Widget {
 	/**
 	 * Editor Widget Constructor
 	 * @param {String} fp - file path
+	 * @param {String} content - file content
 	 * @param {String} lang - language
 	 * @param {String} fn - file name
 	 * @param {WorkspaceManager} mgr - workdpace manager instance
 	 */
-	constructor (fp, lang, fn, mgr) {
+	constructor (fp, content, lang, fn, mgr) {
 		super();
 		this.fp = fp;
+		this.content = content;
 		this.fn = fn;
 		this.lang = lang;
 		this.mgr = mgr;
@@ -41,6 +43,7 @@ export class EditorWidget extends Widget {
 		self = this;
 
 		this.editor = monaco.editor.create (this.node, {
+			value: this.content,
 			language: this.lang,
 			theme: "vs-dark",
 			automaticLayout: true

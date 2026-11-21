@@ -1,10 +1,19 @@
 import * as CheerpX from "https://cxrtnc.leaningtech.com/1.2.8/cx.esm.js";
 
+/**
+ * Wrapper class for managing and interacting with a CheerpX Linux instance.
+ */
 export class CheerpXRunner {
+	/**
+	 * Initializes a CheerpXRunner instance with optional default settings.
+	 * @param {Object} [defaultOptions] - Optional default configuration.
+	 * @param {string} [defaultOptions.decCode] - Default text decoder encoding.
+	 * @param {Object} [defaultOptions.runOpt] - Default process execution options.
+	 */
 	constructor (defaultOptions) {
-		let mergedRunOpt = null;
+		let defRunOpt = null;
 
-		mergedRunOpt = {
+		defRunOpt = {
 			env: [
 				"HOME=/root",
 				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -18,34 +27,49 @@ export class CheerpXRunner {
 		};
 
 		this.decCode = "utf-8";
-		this.runOpt = mergedRunOpt;
+		this.runOpt = defRunOpt;
 		this.cx = null;
 		this.sendFunc = null;
 		this.isSilent = false;
 		this.captureBuffer = "";
 		this.isCapturing = false;
 
-		if (defaultOptions !== undefined) {
-			if (defaultOptions.decCode !== undefined) {
-				this.decCode = defaultOptions.decCode;
-			}
-			if (defaultOptions.runOpt !== undefined) {
-				if (defaultOptions.runOpt.env !== undefined) {
-					this.runOpt.env = defaultOptions.runOpt.env;
-				}
-				if (defaultOptions.runOpt.cwd !== undefined) {
-					this.runOpt.cwd = defaultOptions.runOpt.cwd;
-				}
-				if (defaultOptions.runOpt.uid !== undefined) {
-					this.runOpt.uid = defaultOptions.runOpt.uid;
-				}
-				if (defaultOptions.runOpt.gid !== undefined) {
-					this.runOpt.gid = defaultOptions.runOpt.gid;
-				}
-			}
+		if (defaultOptions === undefined) {
+			return;
+		}
+		if (defaultOptions.decCode !== undefined) {
+			this.decCode = defaultOptions.decCode;
+		}
+		this._applyRunOptions(this.runOpt, defaultOptions.runOpt);
+	}
+
+	/**
+	 * Applies partial run options onto a target options object.
+	 * @param {Object} targetOpt - Target run options object to mutate.
+	 * @param {Object} [srcOpt] - Source run options to apply.
+	 */
+	_applyRunOptions (targetOpt, srcOpt) {
+		if (srcOpt === undefined) {
+			return;
+		}
+		if (srcOpt.env !== undefined) {
+			targetOpt.env = srcOpt.env;
+		}
+		if (srcOpt.cwd !== undefined) {
+			targetOpt.cwd = srcOpt.cwd;
+		}
+		if (srcOpt.uid !== undefined) {
+			targetOpt.uid = srcOpt.uid;
+		}
+		if (srcOpt.gid !== undefined) {
+			targetOpt.gid = srcOpt.gid;
 		}
 	}
 
+	/**
+	 * Sends a command string byte-by-byte to the active console input callback.
+	 * @param {string} cmdStr - Command string to send.
+	 */
 	sendCommand (cmdStr) {
 		let enc = null;
 		let bytes = null;
@@ -62,6 +86,12 @@ export class CheerpXRunner {
 		}
 	}
 
+	/**
+	 * Writes text content to a file inside the CheerpX filesystem via base64.
+	 * @param {string} filePath - Destination file path.
+	 * @param {string} content - File content to write.
+	 * @returns {Promise<void>}
+	 */
 	async writeFile (filePath, content) {
 		let enc = null;
 		let bytes = null;
@@ -87,6 +117,11 @@ export class CheerpXRunner {
 		this.isSilent = false;
 	}
 
+	/**
+	 * Removes a file or directory inside the CheerpX filesystem.
+	 * @param {string} filePath - Target path to remove.
+	 * @returns {Promise<void>}
+	 */
 	async removeFile (filePath) {
 		let cmd = "";
 
@@ -100,6 +135,12 @@ export class CheerpXRunner {
 		this.isSilent = false;
 	}
 
+	/**
+	 * Copies a file or directory inside the CheerpX filesystem.
+	 * @param {string} srcPath - Source path.
+	 * @param {string} destPath - Destination path.
+	 * @returns {Promise<void>}
+	 */
 	async copyFile (srcPath, destPath) {
 		let cmd = "";
 
@@ -113,6 +154,11 @@ export class CheerpXRunner {
 		this.isSilent = false;
 	}
 
+	/**
+	 * Executes a shell command and captures its console output without writing to terminal.
+	 * @param {string} cmd - Shell command to execute.
+	 * @returns {Promise<string>} Captured output string.
+	 */
 	async execSilentOutput (cmd) {
 		let result = "";
 
@@ -130,36 +176,47 @@ export class CheerpXRunner {
 		return result;
 	}
 
+	/**
+	 * Lists entry paths under a target directory excluding the directory itself.
+	 * @param {string} targetDir - Directory path to scan.
+	 * @returns {Promise<string[]>} List of found paths.
+	 */
 	async listFiles (targetDir) {
 		let cmd = "";
-		let rawOutput = "";
+		let rawOut = "";
 		let lines = [];
 		let paths = [];
 		let i = 0;
 		let line = "";
-		let normalizedTarget = "";
+		let normTarget = "";
 
 		cmd = `mkdir -p "${targetDir}" && find "${targetDir}" -mindepth 1 2>/dev/null`;
-		rawOutput = await this.execSilentOutput(cmd);
-		lines = rawOutput.split(/\r?\n/);
-		normalizedTarget = targetDir.replace(/\/+$/, "");
+		rawOut = await this.execSilentOutput(cmd);
+		lines = rawOut.split(/\r?\n/);
+		normTarget = targetDir.replace(/\/+$/, "");
 
 		for (i = 0; i < lines.length; i++) {
 			line = lines[i].trim();
-			if (line !== "") {
-				if (line === normalizedTarget) {
-					continue;
-				}
-				if (line === normalizedTarget + "/") {
-					continue;
-				}
-				paths.push(line);
+			if (line === "") {
+				continue;
 			}
+			if (line === normTarget) {
+				continue;
+			}
+			if (line === normTarget + "/") {
+				continue;
+			}
+			paths.push(line);
 		}
 
 		return paths;
 	}
 
+	/**
+	 * Reads and decodes a file from the CheerpX filesystem using base64.
+	 * @param {string} filePath - File path to read.
+	 * @returns {Promise<string>} Decoded file content, or empty string on failure/empty file.
+	 */
 	async readFile (filePath) {
 		let cmd = "";
 		let b64 = "";
@@ -190,61 +247,77 @@ export class CheerpXRunner {
 		}
 	}
 
+	/**
+	 * Resolves a single entry path (appending "/" if it is a directory) or null if skipped.
+	 * @param {string} rawLine - Raw line from find output.
+	 * @param {string} normTarget - Normalized target directory path.
+	 * @returns {Promise<string|null>} Normalized entry path or null.
+	 */
+	async _resolveEntryPath (rawLine, normTarget) {
+		let line = "";
+		let dirCmd = "";
+		let dirRes = "";
+
+		line = rawLine.trim();
+		if (line === "") {
+			return null;
+		}
+		if (line === normTarget) {
+			return null;
+		}
+		if (line === normTarget + "/") {
+			return null;
+		}
+		if (line === "/") {
+			return null;
+		}
+
+		dirCmd = `if [ -d "${line}" ]; then echo "YES"; else echo "NO"; fi`;
+		dirRes = await this.execSilentOutput(dirCmd);
+		dirRes = dirRes.trim();
+
+		if (dirRes === "YES") {
+			return line + "/";
+		}
+		return line;
+	}
+
+	/**
+	 * Synchronizes directory entries and file contents into a path list and Map.
+	 * @param {string} targetDir - Target directory path to sync.
+	 * @returns {Promise<{paths: string[], fileMap: Map<string, string>}>} Synced paths and file contents.
+	 */
 	async syncWorkspaceFiles (targetDir) {
 		let cmd = "";
-		let rawOutput = "";
+		let rawOut = "";
 		let lines = [];
 		let paths = [];
 		let fileMap = null;
 		let i = 0;
-		let line = "";
+		let entryPath = null;
 		let filePath = "";
 		let content = "";
-		let isDirCmd = "";
-		let isDirRes = "";
-		let normalizedTarget = "";
+		let normTarget = "";
 
 		if (this.cx === null) {
 			throw new Error("CheerpX is not initialized");
 		}
 
 		fileMap = new Map();
-		
 		cmd = `mkdir -p "${targetDir}" && find "${targetDir}" -mindepth 1 2>/dev/null`;
-		rawOutput = await this.execSilentOutput(cmd);
-		
-		lines = rawOutput.split(/\r?\n/);
-		normalizedTarget = targetDir.replace(/\/+$/, "");
+		rawOut = await this.execSilentOutput(cmd);
+		lines = rawOut.split(/\r?\n/);
+		normTarget = targetDir.replace(/\/+$/, "");
 
 		for (i = 0; i < lines.length; i++) {
-			line = lines[i];
-			line = line.trim();
-			if (line !== "") {
-				if (line === normalizedTarget) {
-					continue;
-				}
-				if (line === normalizedTarget + "/") {
-					continue;
-				}
-				if (line === "/" || line === "") {
-					continue;
-				}
-
-				isDirCmd = `if [ -d "${line}" ]; then echo "YES"; else echo "NO"; fi`;
-				isDirRes = await this.execSilentOutput(isDirCmd);
-				isDirRes = isDirRes.trim();
-
-				if (isDirRes === "YES") {
-					paths.push(line + "/");
-				} else {
-					paths.push(line);
-				}
+			entryPath = await this._resolveEntryPath(lines[i], normTarget);
+			if (entryPath !== null) {
+				paths.push(entryPath);
 			}
 		}
 
 		for (i = 0; i < paths.length; i++) {
 			filePath = paths[i];
-			
 			if (!filePath.endsWith("/")) {
 				content = await this.readFile(filePath);
 				fileMap.set(filePath, content);
@@ -257,6 +330,10 @@ export class CheerpXRunner {
 		};
 	}
 
+	/**
+	 * Checks for the workspace change flag file and resets it if present.
+	 * @returns {Promise<boolean>} True if the change flag existed, false otherwise.
+	 */
 	async checkAndResetChangeFlag () {
 		let cmd = "";
 		let result = "";
@@ -272,6 +349,11 @@ export class CheerpXRunner {
 		return result === "YES";
 	}
 
+	/**
+	 * Counts the number of entries under a target directory.
+	 * @param {string} targetDir - Target directory path.
+	 * @returns {Promise<string>} Line count output from `wc -l`.
+	 */
 	async getWorkspaceCount (targetDir) {
 		let cmd = "";
 		let result = "";
@@ -287,21 +369,31 @@ export class CheerpXRunner {
 		return result;
 	}
 
+	/**
+	 * Initializes CheerpX devices/Linux instance, binds terminal I/O, and runs a process.
+	 * @param {string} exPath - Executable path to run.
+	 * @param {string[]} args - Arguments passed to the executable.
+	 * @param {Object} term - Terminal instance with `cols`, `rows`, `write`, and `onData`.
+	 * @param {string} imgPath - URL or path to the disk image for HttpBytesDevice.
+	 * @param {string} dbName - IndexedDB name for IDBDevice.
+	 * @param {Object} [overrideOptions] - Optional per-run overrides for `decCode` and `runOpt`.
+	 * @returns {Promise<void>}
+	 */
 	async runProcess (exPath, args, term, imgPath, dbName, overrideOptions) {
 		let httpDev = null;
 		let idbDev = null;
 		let overlayDev = null;
 		let dec = null;
 		let enc = null;
-		let currentDecCode = "";
-		let currentRunOpt = null;
+		let decCode = "";
+		let runOpt = null;
 		let txt = "";
 		let normd = "";
 		let bData = null;
 		let j = 0;
 
-		currentDecCode = this.decCode;
-		currentRunOpt = {
+		decCode = this.decCode;
+		runOpt = {
 			env: this.runOpt.env,
 			cwd: this.runOpt.cwd,
 			uid: this.runOpt.uid,
@@ -310,22 +402,9 @@ export class CheerpXRunner {
 
 		if (overrideOptions !== undefined) {
 			if (overrideOptions.decCode !== undefined) {
-				currentDecCode = overrideOptions.decCode;
+				decCode = overrideOptions.decCode;
 			}
-			if (overrideOptions.runOpt !== undefined) {
-				if (overrideOptions.runOpt.env !== undefined) {
-					currentRunOpt.env = overrideOptions.runOpt.env;
-				}
-				if (overrideOptions.runOpt.cwd !== undefined) {
-					currentRunOpt.cwd = overrideOptions.runOpt.cwd;
-				}
-				if (overrideOptions.runOpt.uid !== undefined) {
-					currentRunOpt.uid = overrideOptions.runOpt.uid;
-				}
-				if (overrideOptions.runOpt.gid !== undefined) {
-					currentRunOpt.gid = overrideOptions.runOpt.gid;
-				}
-			}
+			this._applyRunOptions(runOpt, overrideOptions.runOpt);
 		}
 
 		try {
@@ -349,7 +428,7 @@ export class CheerpXRunner {
 				}
 			);
 
-			dec = new TextDecoder(currentDecCode);
+			dec = new TextDecoder(decCode);
 			this.sendFunc = this.cx.setCustomConsole(
 				(buf) => {
 					txt = dec.decode(
@@ -382,7 +461,7 @@ export class CheerpXRunner {
 				}
 			);
 
-			await this.cx.run(exPath, args, currentRunOpt);
+			await this.cx.run(exPath, args, runOpt);
 		} catch (err) {
 			console.error("Error starting process:", err);
 		}
