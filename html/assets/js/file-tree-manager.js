@@ -1,6 +1,6 @@
 import * as wb from "wunderbaum";
 
-const ROOT_DIR = "/workspace";
+export const ROOT_DIR = "/workspace";
 
 /**
  * Manages the file tree UI backed by Wunderbaum and synchronizes it with workspace file paths.
@@ -15,8 +15,6 @@ export class FileTreeManager {
 		this.tree = null;
 		this.expandedPaths = new Set ([ROOT_DIR]);
 		this.lastPaths = [];
-		this.clipboard = null;
-		this._dragSourceNode = null;
 	}
 
 	/**
@@ -99,18 +97,15 @@ export class FileTreeManager {
 	}
 
 	/**
-	 * Initializes the Wunderbaum instance, dark theme variables, tree event handlers, and D&D/clipboard bindings.
-	 * @returns {void}
+	 * Returns Wunderbaum configuration options. Subclasses can override to extend behavior.
+	 * @returns {object} Wunderbaum constructor options.
 	 */
-	init () {
-		let treeElm = null;
+	_createTreeOptions () {
 		let self = null;
 
 		self = this;
-		treeElm = document.getElementById ("file-tree-container");
-
-		this.tree = new wb.Wunderbaum ({
-			element: treeElm,
+		return {
+			element: null,
 			source: [{
 				title: this.getRootTitle (),
 				key: ROOT_DIR,
@@ -175,171 +170,34 @@ export class FileTreeManager {
 					return self.handleEditSave (e);
 				}
 			}
-		});
-
-		this._bindDragAndDrop (treeElm);
-		this._bindKeyboardShortcuts (treeElm);
+		};
 	}
 
 	/**
-	 * Binds HTML5 drag-and-drop listeners on the tree container for moving files and folders.
+	 * Hook called after Wunderbaum is initialized. Subclasses can override to bind extra events.
 	 * @param {HTMLElement|null} treeElm - File tree container element.
 	 * @returns {void}
 	 */
-	_bindDragAndDrop (treeElm) {
-		let self = null;
-
+	_onAfterInit (treeElm) {
 		if (treeElm === null) {
 			return;
 		}
-		self = this;
-		treeElm.draggable = true;
-
-		treeElm.addEventListener ("dragstart", (ev) => {
-			let node = null;
-			let srcPath = "";
-
-			if (self.tree === null || typeof self.tree.getNode !== "function") {
-				return;
-			}
-			node = self.tree.getNode (ev.target);
-			srcPath = self.getNodePath (node);
-			if (srcPath === "" || srcPath === ROOT_DIR) {
-				ev.preventDefault ();
-				return;
-			}
-			self._dragSourceNode = node;
-			if (ev.dataTransfer !== null && ev.dataTransfer !== undefined) {
-				ev.dataTransfer.effectAllowed = "move";
-				ev.dataTransfer.setData ("text/plain", srcPath);
-			}
-		});
-
-		treeElm.addEventListener ("dragover", (ev) => {
-			let targetNode = null;
-			let destDir = "";
-			let srcPath = "";
-
-			if (self._dragSourceNode === null) {
-				return;
-			}
-			srcPath = self.getNodePath (self._dragSourceNode);
-			targetNode = self.tree.getNode (ev.target);
-			destDir = self.resolveDirectoryFromNode (targetNode);
-
-			if (self.canTransfer (srcPath, destDir) === true) {
-				ev.preventDefault ();
-				if (ev.dataTransfer !== null && ev.dataTransfer !== undefined) {
-					ev.dataTransfer.dropEffect = "move";
-				}
-			}
-		});
-
-		treeElm.addEventListener ("drop", async (ev) => {
-			let targetNode = null;
-			let destDir = "";
-			let srcNode = null;
-			let srcPath = "";
-			let isFolder = false;
-
-			if (self._dragSourceNode === null) {
-				return;
-			}
-			ev.preventDefault ();
-			srcNode = self._dragSourceNode;
-			self._dragSourceNode = null;
-
-			srcPath = self.getNodePath (srcNode);
-			isFolder = self.isNodeFolder (srcNode);
-			targetNode = self.tree.getNode (ev.target);
-			destDir = self.resolveDirectoryFromNode (targetNode);
-
-			if (self.canTransfer (srcPath, destDir) === false) {
-				return;
-			}
-
-			await self.mgr.transferItem ("move", srcPath, destDir, isFolder);
-		});
-
-		treeElm.addEventListener ("dragend", () => {
-			self._dragSourceNode = null;
-		});
 	}
 
 	/**
-	 * Binds Ctrl/Cmd + C / X / V shortcuts for copying and moving selected tree items.
-	 * @param {HTMLElement|null} treeElm - File tree container element.
+	 * Initializes the Wunderbaum instance and dark theme variables.
 	 * @returns {void}
 	 */
-	_bindKeyboardShortcuts (treeElm) {
-		let self = null;
+	init () {
+		let treeElm = null;
+		let options = null;
 
-		if (treeElm === null) {
-			return;
-		}
-		self = this;
-		if (treeElm.tabIndex < 0) {
-			treeElm.tabIndex = 0;
-		}
+		treeElm = document.getElementById ("file-tree-container");
+		options = this._createTreeOptions ();
+		options.element = treeElm;
 
-		treeElm.addEventListener ("keydown", async (ev) => {
-			let hasMod = false;
-			let key = "";
-			let activeNode = null;
-			let nodePath = "";
-			let isFolder = false;
-			let targetDir = "";
-
-			hasMod = ev.ctrlKey === true || ev.metaKey === true;
-			if (hasMod === false) {
-				return;
-			}
-
-			key = ev.key.toLowerCase ();
-			if (key === "c") {
-				ev.preventDefault ();
-				activeNode = self.getActiveNodeSafe ();
-				nodePath = self.getNodePath (activeNode);
-				if (nodePath === "" || nodePath === ROOT_DIR) {
-					return;
-				}
-				isFolder = self.isNodeFolder (activeNode);
-				self.setClipboard ("copy", nodePath, isFolder);
-				return;
-			}
-
-			if (key === "x") {
-				ev.preventDefault ();
-				activeNode = self.getActiveNodeSafe ();
-				nodePath = self.getNodePath (activeNode);
-				if (nodePath === "" || nodePath === ROOT_DIR) {
-					return;
-				}
-				isFolder = self.isNodeFolder (activeNode);
-				self.setClipboard ("move", nodePath, isFolder);
-				return;
-			}
-
-			if (key === "v") {
-				ev.preventDefault ();
-				if (self.clipboard === null) {
-					return;
-				}
-				targetDir = self.getTargetDirectory ();
-				if (self.canTransfer (self.clipboard.sourcePath, targetDir, self.clipboard.mode) === false) {
-					return;
-				}
-				await self.mgr.transferItem (
-					self.clipboard.mode,
-					self.clipboard.sourcePath,
-					targetDir,
-					self.clipboard.isFolder
-				);
-				if (self.clipboard !== null && self.clipboard.mode === "move") {
-					self.clipboard = null;
-				}
-			}
-		});
+		this.tree = new wb.Wunderbaum (options);
+		this._onAfterInit (treeElm);
 	}
 
 	/**
@@ -357,27 +215,6 @@ export class FileTreeManager {
 			return null;
 		}
 		return activeNode;
-	}
-
-	/**
-	 * Stores a copy or move operation in the internal tree clipboard.
-	 * @param {"copy"|"move"} mode - Operation mode.
-	 * @param {string} sourcePath - Source file or directory path.
-	 * @param {boolean} isFolder - True if sourcePath is a folder.
-	 * @returns {void}
-	 */
-	setClipboard (mode, sourcePath, isFolder) {
-		let normPath = "";
-
-		normPath = sourcePath.replace (/\/+$/, "");
-		if (normPath === "" || normPath === ROOT_DIR) {
-			return;
-		}
-		this.clipboard = {
-			mode: mode,
-			sourcePath: normPath,
-			isFolder: isFolder === true
-		};
 	}
 
 	/**
@@ -404,43 +241,6 @@ export class FileTreeManager {
 			return ROOT_DIR;
 		}
 		return nodePath.substring (0, lastSlash);
-	}
-
-	/**
-	 * Validates whether sourcePath can be copied or moved into targetDir.
-	 * @param {string} sourcePath - Source file or directory path.
-	 * @param {string} targetDir - Destination directory path.
-	 * @param {"copy"|"move"} [mode="move"] - Operation mode.
-	 * @returns {boolean} True if transfer is valid.
-	 */
-	canTransfer (sourcePath, targetDir, mode) {
-		let normSrc = "";
-		let normDest = "";
-		let opMode = "";
-
-		if (sourcePath === "" || targetDir === "") {
-			return false;
-		}
-		normSrc = sourcePath.replace (/\/+$/, "");
-		normDest = targetDir.replace (/\/+$/, "");
-		opMode = mode;
-		if (opMode === undefined) {
-			opMode = "move";
-		}
-
-		if (normSrc === "" || normSrc === ROOT_DIR) {
-			return false;
-		}
-		if (normDest === "") {
-			return false;
-		}
-		if (normSrc === normDest) {
-			return false;
-		}
-		if (opMode === "move" && normDest.startsWith (normSrc + "/")) {
-			return false;
-		}
-		return true;
 	}
 
 	/**
@@ -491,13 +291,27 @@ export class FileTreeManager {
 	}
 
 	/**
+	 * Rebuilds tree data from paths and reloads the Wunderbaum instance.
+	 * @param {string[]} paths - List of file and directory paths under ROOT_DIR.
+	 * @returns {void}
+	 */
+	_rebuildTree (paths) {
+		let treeData = [];
+
+		if (this.tree === null) {
+			return;
+		}
+
+		treeData = this.buildTreeData (paths);
+		this.tree.reload ({ source: treeData });
+	}
+
+	/**
 	 * Rebuilds and reloads the tree from raw paths while preserving folder expansion states.
 	 * @param {string[]} paths - List of file and directory paths under ROOT_DIR.
 	 * @returns {void}
 	 */
 	reload (paths) {
-		let treeData = [];
-
 		if (this.tree === null) {
 			return;
 		}
@@ -506,8 +320,7 @@ export class FileTreeManager {
 		this.expandedPaths = this.captureExpandedPaths ();
 		this.expandedPaths.add (ROOT_DIR);
 
-		treeData = this.buildTreeData (paths);
-		this.tree.reload ({ source: treeData });
+		this._rebuildTree (paths);
 	}
 
 	/**
@@ -672,14 +485,11 @@ export class FileTreeManager {
 	 * @returns {void}
 	 */
 	collapseAll () {
-		let treeData = [];
-
 		if (this.tree === null) {
 			return;
 		}
 
 		this.expandedPaths = new Set ([ROOT_DIR]);
-		treeData = this.buildTreeData (this.lastPaths);
-		this.tree.reload ({ source: treeData });
+		this._rebuildTree (this.lastPaths);
 	}
 }

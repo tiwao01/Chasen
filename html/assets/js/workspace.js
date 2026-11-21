@@ -1,7 +1,7 @@
 import { CheerpXRunner } from "./runprocess.js";
 import { UiHelper } from "./ui.js";
 import { TerminalManager } from "./terminal-manager.js";
-import { FileTreeManager } from "./file-tree-manager.js";
+import { InteractiveFileTreeManager } from "./interactive-file-tree-manager.js";
 import { TabManager } from "./tab-manager.js";
 import { EditorDockManager } from "./editor-dock-manager.js";
 import { WorkspaceSyncController } from "./workspace-sync-controller.js";
@@ -33,7 +33,7 @@ export class WorkspaceManager {
 		this.lang = null;
 		this.ui = new UiHelper();
 		this.termMgr = new TerminalManager();
-		this.treeMgr = new FileTreeManager(this);
+		this.treeMgr = new InteractiveFileTreeManager(this);
 		this.tabMgr = new TabManager(this);
 		this.editorMgr = new EditorDockManager(this);
 		this.syncCtrl = new WorkspaceSyncController(this);
