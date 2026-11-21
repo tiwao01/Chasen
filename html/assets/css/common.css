@@ -1,56 +1,288 @@
+:root {
+  --font-color: darkslategray;
+  --font-color-header: whitesmoke;
+  --bg-color-dark: #707070;
+  --bg-color-dimmed: whitesmoke;
+  --bg-color-light: white;
+  --hint-color: lightyellow;
+  --link-color: #1d47be;
+  --error-color: red;
+  --border-radius: 4px;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
 body {
-    margin: 0;
-    padding: 0;
-    display: flex;
-    height: 100vh;
-    font-family: sans-serif;
-    overflow: hidden;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    "Segoe UI", Candara, "Bitstream Vera Sans", "DejaVu Sans", sans-serif;
+  background-color: var(--bg-color-dark);
+  color: var(--font-color);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.pane {
-    width: 50%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+.topbar {
+  height: 44px;
+  padding: 0 12px;
+  background: #252526;
+  border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-#pane-editor {
-    background: #1e1e1e;
-    border-right: 1px solid #333;
+.topbar-left,
+.topbar-center,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-#editor-container {
-    flex-grow: 1;
-    width: 100%;
-    position: relative;
+.badge {
+  background: #333;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #ccc;
 }
 
-#pane-terminal {
-    background: #000;
+.opt-label {
+  font-size: 12px;
+  color: #ccc;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #3c3c3c;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #4c4c4c;
+}
+
+.btn-icon {
+  padding: 4px 6px;
+}
+
+.btn-icon.active {
+  background: #0e639c;
+  border-color: #1177bb;
+}
+
+.btn-group {
+  display: flex;
+  gap: 2px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #333333;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+}
+
+.toast[data-show="on"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.material-symbols-outlined {
+  font-size: 18px;
+}
+
+.ide-workspace,
+.workspace-container {
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  width: 100%;
+  height: calc(100vh - 44px);
+  height: calc(100dvh - 44px);
+  overflow: hidden;
+}
+
+.ide-sidebar,
+.file-tree-container {
+  width: 240px;
+  background: var(--bg-color-dimmed);
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #bbbbbb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #252526;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ide-main-pane {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  background: #1e1e1e;
+}
+
+#dock-container {
+  flex-grow: 1;
+  width: 100%;
+  height: 60%;
+  position: relative;
 }
 
 #terminal-container {
-    flex-grow: 1;
-    width: 100%;
+  width: 100%;
+  height: 40%;
+  background: #000000;
+  border-top: 1px solid #333;
+  padding: 4px;
 }
 
-.header {
-    padding: 8px 12px;
-    background: #1e1e1e;
-    color: #fff;
-    font-size: 13px;
-    border-bottom: 1px solid #333;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.lm-DockPanel {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
-.back-link {
-    color: #4da6ff;
-    text-decoration: none;
-    font-weight: bold;
+.lm-TabBar {
+  background: #2d2d2d !important;
+  border-bottom: 1px solid #333 !important;
 }
 
-.back-link:hover {
-    text-decoration: underline;
+.lm-Tab {
+  background: #2d2d2d !important;
+  color: #969696 !important;
+  border-right: 1px solid #252526 !important;
+  font-size: 12px !important;
+}
+
+.lm-Tab.lm-mod-current {
+  background: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+div#nav-tree {
+  background-color: var(--bg-color-dimmed);
+  overflow: hidden;
+  border: none;
+}
+
+div.wunderbaum:focus-visible {
+  outline-style: none;
+}
+
+div.wunderbaum {
+  background: #252526 !important;
+  color: #cccccc !important;
+  border: none !important;
+  padding: 4px 0 !important;
+}
+
+div.wunderbaum .wb-list-container,
+div.wunderbaum .wb-scroller,
+div.wunderbaum .wb-cells,
+div.wunderbaum .wb-node,
+div.wunderbaum .wb-substitute,
+div.wunderbaum .wb-card-container,
+div.wunderbaum div {
+  background-color: transparent !important;
+  color: #cccccc !important;
+}
+
+div.wunderbaum .wb-row {
+  padding: 3px 8px !important;
+  cursor: pointer;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  color: #cccccc !important;
+}
+
+div.wunderbaum .wb-row:hover {
+  background-color: #2a2d2e !important;
+  color: #ffffff !important;
+}
+
+div.wunderbaum .wb-row.wb-selected,
+div.wunderbaum .wb-row.wb-active {
+  background-color: #37373d !important;
+  color: #ffffff !important;
+}
+
+div.wunderbaum .wb-title,
+div.wunderbaum span,
+div.wunderbaum a {
+  color: inherit !important;
+}
+
+div.wunderbaum .wb-col {
+  padding: 0 4px !important;
+}
+
+div.wunderbaum {
+  scrollbar-color: #424242 #252526;
+}
+
+.wunderbaum-container,
+div[class*="wb-"] {
+  color-scheme: dark;
+}
+
+/* スクロールバー設定 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4f4f4f;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }

@@ -1,121 +1,274 @@
 import { CheerpXRunner } from "./runprocess.js";
-import * as monaco from "https://esm.sh/monaco-editor@0.45.0";
+import { UiHelper } from "./ui.js";
+import { DockPanel, Widget } from "@lumino/widgets";
+import { EditorWidget } from "./editor-widget.js";
+import { TerminalManager } from "./terminal-manager.js";
+import { FileTreeManager } from "./file-tree-manager.js";
 
-// Setting for monaco editor web worker
+const EXT_LANG_MAP = {
+	c: "c",
+	h: "c",
+	cpp: "cpp",
+	hpp: "cpp",
+	cc: "cpp",
+	py: "python",
+	js: "javascript",
+	ts: "typescript",
+	html: "html",
+	css: "css",
+	json: "json",
+	md: "markdown",
+	sh: "shell",
+	bash: "shell"
+};
+
+const DEFAULT_LANG = "c";
+const EDITOR_LAYOUT_DELAY_MS = 50;
+const ROOT_DIR = "/workspace";
+const SYNC_INTERVAL_MS = 500;
+const CHEERPX_CHECK_INTERVAL_MS = 1000;
+
 self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
-		return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-			self.MonacoEnvironment = {
-				baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/'
-			};
+		let workerScript = "";
+		workerScript = `
+			self.MonacoEnvironment = { baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/' };
 			importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/base/worker/workerMain.js');
-		`)}`;
+		`;
+		return `data:text/javascript;charset=utf-8,${encodeURIComponent(workerScript)}`;
 	}
 };
 
-// lang to language for Monaco
-const LANG_CONF_MAP = {
-    c: {
-        language: "c",
-        codePath: "assets/initial/init.c"
-    }
-}
-
-async function initializeWorkspace() {
-	let params = null;
-	let lang = "";
-    let currentConfig = null;
-	let titleElm = null;
-	let termElm = null;
-	let editorElm = null;
-	let term = null;
-	let fitAddon = null;
-    let editor = null;
-	let runner = null;
-	let imgPath = "";
-	let dbName = "";
-    let codeText = "";
-    let response = null;
-
-	params = new URLSearchParams (window.location.search);
-	lang = params.get ("lang");
-
-	if (lang === null) {
-		lang = "c";
+export class WorkspaceManager {
+	constructor () {
+		this.runner = null;
+		this.dockPanel = null;
+		this.openWidgets = new Map();
+		this.fileContents = new Map();
+		this.activeWidget = null;
+		this.lang = null;
+		this.ui = new UiHelper();
+		this.termMgr = new TerminalManager();
+		this.treeMgr = new FileTreeManager(this);
+		this.isWatching = false;
 	}
 
-    currentConfig = LANG_CONF_MAP[lang];
-    if (currentConfig === undefined) {
-        lang = "c";
-        currentConfig = LANG_CONF_MAP["c"];
-    }
+	async init () {
+		let params = null;
+		let badgeElm = null;
 
-	titleElm = document.getElementById ("title");
-	termElm = document.getElementById ("terminal-container");
-	editorElm = document.getElementById ("editor-container");
-
-	titleElm.innerText = `${lang} Environment Loading...`;
-
-    // Load inital code file.
-    try {
-        response = await fetch (currentConfig.codePath);
-        if (response.ok) {
-            codeText = await response.text ();
-        }
-    } catch (fetchErr) {
-        console.error ("Failed to load initial code file, using default.", fetchErr);
-    }
-
-	// Init terminal.
-	term = new Terminal (
-        {
-		    cursorBlink: true,
-		    theme: {
-			    background: "#000000"
-		    }
-	    }
-    );
-	fitAddon = new FitAddon.FitAddon ();
-	term.loadAddon (fitAddon);
-	term.open (termElm);
-	fitAddon.fit ();
-
-	// Init editor.
-	editor = monaco.editor.create (
-		editorElm,
-		{
-			value: codeText,
-			language: currentConfig.language,
-			theme: "vs-dark",
-			automaticLayout: true
+		params = new URLSearchParams(window.location.search);
+		this.lang = params.get("lang");
+		if (this.lang === null) {
+			this.lang = DEFAULT_LANG;
 		}
-	);
 
-	// Resize
-	window.addEventListener (
-		"resize",
-		() => {
-			fitAddon.fit ();
+		badgeElm = document.getElementById("env-badge");
+		this.ui.updateBadgeLoading(badgeElm, this.lang);
+
+		this.termMgr.init();
+		this.initDockPanel();
+		this.treeMgr.init();
+		this.initEventListeners();
+
+		await this.startCheerpX(badgeElm);
+
+		this.startInotifyWatch();
+	}
+
+	initDockPanel () {
+		let dockElm = null;
+
+		dockElm = document.getElementById("dock-container");
+		this.dockPanel = new DockPanel();
+		this.dockPanel.node.style.height = "100%";
+		this.dockPanel.node.style.width = "100%";
+		Widget.attach(this.dockPanel, dockElm);
+	}
+
+	async startCheerpX (badgeElm) {
+		let imgPath = "";
+		let dbName = "";
+		let overrideOptions = null;
+		let checkInterval = null;
+		let self = null;
+
+		try {
+			this.runner = new CheerpXRunner();
+			imgPath = `/dist/rootfs-${this.lang}.ext2`;
+			dbName = `cache_${this.lang}`;
+
+			this.ui.updateBadgeRunning(badgeElm, this.lang);
+
+			overrideOptions = {
+				runOpt: {
+					cwd: ROOT_DIR
+				}
+			};
+
+			this.runner.runProcess("/bin/sh", [], this.termMgr.term, imgPath, dbName, overrideOptions);
+
+			self = this;
+			await new Promise((resolve) => {
+				checkInterval = setInterval(() => {
+					if (self.runner !== null) {
+						if (self.runner.cx !== null) {
+							clearInterval(checkInterval);
+							resolve();
+						}
+					}
+				}, CHEERPX_CHECK_INTERVAL_MS);
+			});
+
+			await this.syncFromCheerpX();
+		} catch (err) {
+			console.error("Error starting CheerpX:", err);
+			this.ui.updateBadgeError(badgeElm, err.message);
 		}
-	);
+	}
 
-	try {
-		runner = new CheerpXRunner();
-		imgPath = `/dist/rootfs-${lang}.ext2`;
-		dbName = `cache_${lang}`;
+	async syncFromCheerpX () {
+		let syncRes = null;
+		let paths = [];
+		let fileMap = null;
 
-		titleElm.innerText = `${lang} Environment Running`;
-		await runner.runProcess (
-            "/bin/sh",
-            [],
-            term,
-            imgPath,
-            dbName
-        );
-	} catch (err) {
-		console.error ("Error starting workspace:", err);
-		titleElm.innerText = `Error: ${err.message}`;
+		if (this.runner === null) {
+			return;
+		}
+
+		if (this.runner.cx === null) {
+			return;
+		}
+
+		syncRes = await this.runner.syncWorkspaceFiles(ROOT_DIR);
+		paths = syncRes.paths;
+		fileMap = syncRes.fileMap;
+
+		this.fileContents = fileMap;
+		if (this.treeMgr !== null) {
+			this.treeMgr.reload(paths);
+		}
+	}
+
+	async startInotifyWatch () {
+		if (this.isWatching) {
+			console.log("[Watcher] Already watching");
+			return;
+		}
+
+		this.isWatching = true;
+		console.log("[Watcher] Watcher disabled for maximum performance and stability.");
+	}
+
+	initEventListeners () {
+		let newFileElm = null;
+		let self = null;
+
+		self = this;
+		newFileElm = document.getElementById("btn-new-file");
+		if (newFileElm !== null) {
+			newFileElm.addEventListener("click", () => {
+				self.handleNewFile();
+			});
+		}
+
+		window.addEventListener("resize", () => {
+			self.handleResize();
+		});
+	}
+
+	handleResize () {
+		this.termMgr.fit();
+		if (this.dockPanel !== null) {
+			this.dockPanel.update();
+		}
+	}
+
+	async handleNewFile () {
+		let fileName = "";
+		let fullPath = "";
+
+		fileName = prompt("新規ファイル名を入力してください:");
+		if (fileName === null) {
+			return;
+		}
+		if (fileName.trim() === "") {
+			return;
+		}
+
+		fullPath = ROOT_DIR + "/" + fileName;
+		this.fileContents.set(fullPath, "");
+
+		if (this.runner !== null) {
+			await this.runner.writeFile(fullPath, "");
+		}
+
+		await this.syncFromCheerpX();
+		this.openFile(fullPath);
+	}
+
+	openFile (path) {
+		let widget = null;
+		let content = "";
+		let fileName = "";
+		let monacoLang = "";
+
+		if (this.openWidgets.has(path)) {
+			widget = this.openWidgets.get(path);
+			this.dockPanel.activateWidget(widget);
+			this.activeWidget = widget;
+			if (widget.editor !== null) {
+				widget.editor.layout();
+			}
+			return;
+		}
+
+		content = this.fileContents.get(path);
+		if (content === undefined) {
+			content = "";
+		}
+
+		fileName = path.split("/").pop();
+		monacoLang = this.detectLanguage(fileName);
+
+		widget = new EditorWidget(path, content, monacoLang, fileName, this);
+		this.openWidgets.set(path, widget);
+
+		widget.title.closable = true;
+		widget.disposed.connect(() => {
+			this.openWidgets.delete(path);
+		});
+
+		this.dockPanel.addWidget(widget);
+		this.dockPanel.activateWidget(widget);
+		this.activeWidget = widget;
+
+		setTimeout(() => {
+			if (widget.editor !== null) {
+				widget.editor.layout();
+			}
+		}, EDITOR_LAYOUT_DELAY_MS);
+	}
+
+	detectLanguage (fileName) {
+		let ext = "";
+		let lang = "";
+
+		if (fileName === null) {
+			return "plaintext";
+		}
+
+		ext = fileName.split(".").pop().toLowerCase();
+		lang = EXT_LANG_MAP[ext];
+
+		if (lang === undefined) {
+			return "plaintext";
+		}
+
+		return lang;
 	}
 }
 
-initializeWorkspace ();
+let manager = null;
+manager = new WorkspaceManager();
+manager.init();
