@@ -406,7 +406,7 @@ export class CheerpXRunner {
 					if (cleanedTxt === "") {
 						return;
 					}
-					normd = cleanedTxt.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+					normd = cleanedTxt.replace(/\n/g, "\r\n");
 					term.write(normd);
 				},
 				term.cols,

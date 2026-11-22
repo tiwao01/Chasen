@@ -45,12 +45,21 @@ export class WorkspaceWatcher {
 		let cleanTail = "";
 		let filtered = [];
 		let i = 0;
-		let line = "";
+		let rawLine = "";
+		let cleanLine = "";
 		let hasChanged = false;
+		let strippedAnyMarker = false;
 		let result = "";
+
+		if (typeof chunk !== "string" || chunk === "") {
+			if (this._lineCarry === "") {
+				return "";
+			}
+		}
 
 		combined = this._lineCarry + chunk;
 		this._lineCarry = "";
+		combined = combined.replace(/\r\n/g, "\n");
 		endsWithNewline = combined.endsWith("\n");
 		parts = combined.split("\n");
 
@@ -59,11 +68,11 @@ export class WorkspaceWatcher {
 			if (tail === undefined) {
 				tail = "";
 			}
-			cleanTail = tail.replace(/\r$/, "");
+			cleanTail = tail.replace(/\r/g, "");
 			if (cleanTail === WORKSPACE_CHANGE_MARKER || (cleanTail.startsWith("__CX_") && WORKSPACE_CHANGE_MARKER.startsWith(cleanTail))) {
-				this._lineCarry = tail;
+				this._lineCarry = cleanTail;
 			} else {
-				filtered.push(tail);
+				filtered.push(cleanTail);
 			}
 		}
 
@@ -71,11 +80,13 @@ export class WorkspaceWatcher {
 			if (endsWithNewline === true && i === parts.length - 1 && parts[i] === "") {
 				continue;
 			}
-			line = parts[i].replace(/\r$/, "");
-			if (line === WORKSPACE_CHANGE_MARKER) {
+			rawLine = parts[i];
+			cleanLine = rawLine.replace(/\r/g, "");
+			if (cleanLine === WORKSPACE_CHANGE_MARKER) {
 				hasChanged = true;
+				strippedAnyMarker = true;
 			} else {
-				filtered.push(parts[i]);
+				filtered.push(cleanLine);
 			}
 		}
 
@@ -85,8 +96,15 @@ export class WorkspaceWatcher {
 			}
 		}
 
+		if (filtered.length === 0) {
+			if (endsWithNewline === true && strippedAnyMarker === false) {
+				return "\n";
+			}
+			return "";
+		}
+
 		result = filtered.join("\n");
-		if (endsWithNewline === true && filtered.length > 0) {
+		if (endsWithNewline === true) {
 			result = result + "\n";
 		}
 
@@ -122,7 +140,7 @@ export class WorkspaceWatcher {
 			`    prev_snap="$cur_snap"`,
 			`    echo "${WORKSPACE_CHANGE_MARKER}"`,
 			`  fi`,
-			`  sleep 0.5`,
+			`  sleep 1.5`,
 			`done`
 		].join("\n");
 
