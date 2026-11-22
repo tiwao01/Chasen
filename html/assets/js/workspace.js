@@ -218,18 +218,31 @@ export class WorkspaceManager {
 	 * @returns {Promise<string>}
 	 */
 	async resolveImagePath (lang, badgeElm) {
-		let baseUrl = "";
-		let normalizedBase = "";
+		let hostName = "";
+		let isLocalHost = false;
+		let loader = null;
+		let loaded = null;
+		let self = null;
 
-		if (typeof window.ROOTFS_BASE_URL === "string") {
-			baseUrl = window.ROOTFS_BASE_URL.trim();
-		}
-		if (baseUrl !== "" && baseUrl.startsWith("/") === true && baseUrl !== "/assets/rootfs") {
-			normalizedBase = baseUrl.replace(/\/+$/, "");
-			return `${normalizedBase}/rootfs-${lang}.ext2`;
+		self = this;
+		if (this._objectUrl !== null) {
+			URL.revokeObjectURL(this._objectUrl);
+			this._objectUrl = null;
 		}
 
-		return this.resolveLocalFallbackUrl(lang);
+		hostName = window.location.hostname;
+		isLocalHost = (hostName === "localhost" || hostName === "127.0.0.1");
+		if (isLocalHost === true) {
+			return this.resolveLocalFallbackUrl(lang);
+		}
+
+		loader = this._getRootfsLoader();
+		loaded = await loader.ensureExt2InOpfs(lang, (progress) => {
+			self._handleLoaderProgress(badgeElm, lang, progress);
+		});
+
+		this._objectUrl = URL.createObjectURL(loaded.file);
+		return this._objectUrl;
 	}
 
 	/**
