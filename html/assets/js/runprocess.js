@@ -176,6 +176,45 @@ export class CheerpXRunner {
 	}
 
 	/**
+	 * Writes binary data (Uint8Array) to a file inside the CheerpX filesystem.
+	 * @param {string} filePath - Destination file path.
+	 * @param {Uint8Array} bytes - Binary content to write.
+	 * @returns {Promise<void>}
+	 */
+	async writeFileBytes (filePath, bytes) {
+		await this.fs.writeFileBytes(filePath, bytes);
+	}
+
+	/**
+	 * Reads binary content (Uint8Array) from a file inside the CheerpX filesystem.
+	 * @param {string} filePath - File path to read.
+	 * @returns {Promise<Uint8Array>} Decoded binary data.
+	 */
+	async readFileBytes (filePath) {
+		return await this.fs.readFileBytes(filePath);
+	}
+
+	/**
+	 * Creates a ZIP archive of targetDir at zipPath inside CheerpX.
+	 * @param {string} targetDir - Source directory path.
+	 * @param {string} zipPath - Destination ZIP path.
+	 * @returns {Promise<void>}
+	 */
+	async createZipArchive (targetDir, zipPath) {
+		await this.fs.createZipArchive(targetDir, zipPath);
+	}
+
+	/**
+	 * Validates a ZIP archive and replaces all contents under targetDir safely.
+	 * @param {string} zipPath - Uploaded ZIP path inside CheerpX.
+	 * @param {string} targetDir - Target directory path.
+	 * @returns {Promise<void>}
+	 */
+	async replaceDirectoryFromZip (zipPath, targetDir) {
+		await this.fs.replaceDirectoryFromZip(zipPath, targetDir);
+	}
+
+	/**
 	 * Creates a directory (including parent directories) inside the CheerpX filesystem.
 	 * @param {string} dirPath - Directory path to create.
 	 * @returns {Promise<void>}
@@ -367,7 +406,7 @@ export class CheerpXRunner {
 					if (cleanedTxt === "") {
 						return;
 					}
-					normd = cleanedTxt.replace(/\n/g, "\r\n");
+					normd = cleanedTxt.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
 					term.write(normd);
 				},
 				term.cols,

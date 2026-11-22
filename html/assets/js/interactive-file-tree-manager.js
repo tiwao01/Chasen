@@ -592,7 +592,7 @@ export class InteractiveFileTreeManager extends FileTreeManager {
 			} else {
 				this._fallbackCopyText (copyText);
 			}
-			toastElm = document.getElementById ("toast-msg");
+			toastElm = document.getElementById ("toast");
 			if (toastElm !== null && this.mgr !== null && this.mgr.ui !== null) {
 				this.mgr.ui.showToast (toastElm, `コピーしました: ${copyText}`);
 			}

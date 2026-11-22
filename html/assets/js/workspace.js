@@ -167,6 +167,8 @@ export class WorkspaceManager {
 		let refreshElm = null;
 		let collapseElm = null;
 		let self = null;
+		let exportElm = null;
+		let importElm = null;
 
 		self = this;
 		newFileElm = document.getElementById("btn-new-file");
@@ -194,6 +196,27 @@ export class WorkspaceManager {
 		if (collapseElm !== null) {
 			collapseElm.addEventListener("click", () => {
 				self.handleCollapseAll();
+			});
+		}
+
+		exportElm = document.getElementById("btn-export-chasen");
+		if (exportElm !== null) {
+			exportElm.addEventListener("click", async () => {
+				await self.syncCtrl.exportWorkspaceToZip();
+			});
+		}
+
+		importElm = document.getElementById("btn-import-chasen");
+		if (importElm !== null) {
+			importElm.addEventListener("click", async () => {
+				let selectedFile = null;
+
+				if (self.ui !== null && typeof self.ui.showZipDropDialog === "function") {
+					selectedFile = await self.ui.showZipDropDialog();
+				}
+				if (selectedFile !== null && selectedFile !== undefined) {
+					await self.syncCtrl.importWorkspaceFromZip(selectedFile);
+				}
 			});
 		}
 

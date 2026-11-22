@@ -21,6 +21,7 @@ export class WorkspaceSyncController {
 		this.lastTerminalInputAt = 0;
 		this.syncTimerId = null;
 		this.isSyncing = false;
+		this.isTransferringZip = false;
 	}
 
 	/**
@@ -663,6 +664,278 @@ export class WorkspaceSyncController {
 					}
 				}
 			}
+		}
+	}
+
+	/**
+	 * Shows a toast notification via UiHelper using #toast element.
+	 * @param {string} msg - Message to display.
+	 * @returns {void}
+	 */
+	_notifyToast (msg) {
+		let toastElm = null;
+
+		toastElm = document.getElementById("toast");
+		if (toastElm !== null && this.mgr !== null && this.mgr.ui !== null) {
+			this.mgr.ui.showToast(toastElm, msg);
+		}
+	}
+
+	/**
+	 * Flushes currently open editor widget contents to CheerpX before export.
+	 * @returns {Promise<void>}
+	 */
+	async _flushOpenEditorsToCheerpX () {
+		let runner = null;
+		let openWidgets = null;
+		let entries = [];
+		let i = 0;
+		let filePath = "";
+		let content = "";
+
+		if (this.mgr === null || this.mgr.runner === null || this.mgr.editorMgr === null) {
+			return;
+		}
+		runner = this.mgr.runner;
+		openWidgets = this.mgr.editorMgr.openWidgets;
+		if (!(openWidgets instanceof Map)) {
+			return;
+		}
+
+		entries = Array.from(openWidgets.entries());
+		for (i = 0; i < entries.length; i++) {
+			filePath = entries[i][0];
+			if (filePath.startsWith(ROOT_DIR + "/") === false) {
+				continue;
+			}
+			if (typeof this.mgr.editorMgr.getLatestFileContent === "function") {
+				content = this.mgr.editorMgr.getLatestFileContent(filePath);
+				await runner.writeFile(filePath, content);
+			}
+		}
+	}
+
+	/**
+	 * Closes all currently open editor tabs.
+	 * @returns {void}
+	 */
+	_closeAllEditorTabs () {
+		let openWidgets = null;
+		let keys = [];
+		let i = 0;
+
+		if (this.mgr === null || this.mgr.editorMgr === null) {
+			return;
+		}
+		openWidgets = this.mgr.editorMgr.openWidgets;
+		if (!(openWidgets instanceof Map)) {
+			return;
+		}
+
+		keys = Array.from(openWidgets.keys());
+		for (i = 0; i < keys.length; i++) {
+			this.mgr.editorMgr.closeFile(keys[i]);
+		}
+	}
+
+	/**
+	 * Compresses /workspace into a ZIP file and triggers browser download.
+	 * @returns {Promise<void>}
+	 */
+	async exportWorkspaceToZip () {
+		let runner = null;
+		let tmpZipPath = "";
+		let bytes = null;
+		let blob = null;
+		let url = "";
+		let anchor = null;
+		let langName = "";
+		let progress = null;
+
+		if (this.mgr === null || this.mgr.runner === null || this.mgr.runner.cx === null) {
+			this._notifyToast("環境がまだ準備できていません。");
+			return;
+		}
+		if (this.isTransferringZip === true) {
+			this._notifyToast("処理中です。完了までお待ちください。");
+			return;
+		}
+
+		runner = this.mgr.runner;
+		tmpZipPath = "/tmp/workspace_export.zip";
+		this.isTransferringZip = true;
+		this.isSyncing = true;
+
+		if (this.mgr.ui !== null && typeof this.mgr.ui.showProgressDialog === "function") {
+			progress = this.mgr.ui.showProgressDialog("ZIPダウンロード", "エディタの内容を反映中...");
+			progress.update("エディタの内容を反映中...", 15);
+		}
+
+		try {
+			await this._flushOpenEditorsToCheerpX();
+			if (progress !== null) {
+				progress.update(`${ROOT_DIR} をZIP圧縮中...`, 45);
+			}
+			await runner.createZipArchive(ROOT_DIR, tmpZipPath);
+			if (progress !== null) {
+				progress.update("ZIPデータを読み込み中...", 80);
+			}
+			bytes = await runner.readFileBytes(tmpZipPath);
+
+			if (bytes === null || bytes.length === 0) {
+				throw new Error("ZIPデータが空です");
+			}
+
+			langName = "workspace";
+			if (typeof this.mgr.lang === "string" && this.mgr.lang !== "") {
+				langName = `workspace_${this.mgr.lang}`;
+			}
+
+			if (progress !== null) {
+				progress.update("ダウンロードを開始中...", 100);
+			}
+			blob = new Blob([bytes], { type: "application/zip" });
+			url = URL.createObjectURL(blob);
+			anchor = document.createElement("a");
+			anchor.href = url;
+			anchor.download = `${langName}.zip`;
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			setTimeout(() => {
+				URL.revokeObjectURL(url);
+			}, 1000);
+
+			this._notifyToast("ZIPをダウンロードしました。");
+		} catch (err) {
+			console.error("Failed to export workspace ZIP:", err);
+			this._notifyToast(`ダウンロードに失敗しました: ${err.message}`);
+		} finally {
+			if (progress !== null) {
+				progress.close();
+			}
+			try {
+				await runner.removeFile(tmpZipPath);
+			} catch (e) {
+				// Ignore cleanup failure
+			}
+			this.isSyncing = false;
+			this.isTransferringZip = false;
+			if (this.hasPendingSync === true) {
+				this._scheduleDeferredSync();
+			}
+		}
+	}
+
+	/**
+	 * Prompts confirmation, validates uploaded ZIP, replaces /workspace completely, and syncs UI.
+	 * @param {File} file - Selected ZIP file from input element.
+	 * @returns {Promise<void>}
+	 */
+	async importWorkspaceFromZip (file) {
+		let runner = null;
+		let confirmed = false;
+		let arrayBuf = null;
+		let bytes = null;
+		let tmpZipPath = "";
+		let replaced = false;
+		let progress = null;
+
+		if (file === null || file === undefined) {
+			return;
+		}
+		if (this.mgr === null || this.mgr.runner === null || this.mgr.runner.cx === null) {
+			this._notifyToast("環境がまだ準備できていません。");
+			return;
+		}
+		if (this.isTransferringZip === true) {
+			this._notifyToast("処理中です。完了までお待ちください。");
+			return;
+		}
+		if (file.name.toLowerCase().endsWith(".zip") === false) {
+			this._notifyToast("ZIPファイル（.zip）を選択してください。");
+			return;
+		}
+
+		if (this.mgr.ui !== null && typeof this.mgr.ui.showConfirmDialog === "function") {
+			confirmed = await this.mgr.ui.showConfirmDialog(
+				"ワークスペースの置き換え",
+				`現在の ${ROOT_DIR} 内のファイル・ディレクトリはすべて削除され、「${file.name}」の内容で完全に作り直されます。この操作は元に戻せません。続行しますか？`,
+				"OK"
+			);
+		}
+		if (confirmed === false) {
+			return;
+		}
+
+		runner = this.mgr.runner;
+		tmpZipPath = "/tmp/workspace_import.zip";
+		this.isTransferringZip = true;
+		this.isSyncing = true;
+
+		if (this.mgr.ui !== null && typeof this.mgr.ui.showProgressDialog === "function") {
+			progress = this.mgr.ui.showProgressDialog("ZIPアップロード", "ZIPファイルを読み込み中...");
+			progress.update("ZIPファイルを読み込み中...", 15);
+		}
+
+		try {
+			arrayBuf = await file.arrayBuffer();
+			bytes = new Uint8Array(arrayBuf);
+			if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+				throw new Error("有効なZIPファイルではありません");
+			}
+			if (typeof runner.fs !== "undefined" && typeof runner.fs.validateZipEntriesSafe === "function") {
+				runner.fs.validateZipEntriesSafe(bytes);
+			}
+
+			if (progress !== null) {
+				progress.update("環境へZIPを転送中...", 40);
+			}
+			await runner.writeFileBytes(tmpZipPath, bytes);
+
+			if (progress !== null) {
+				progress.update("安全性を検証して /workspace を置き換え中...", 70);
+			}
+			await runner.replaceDirectoryFromZip(tmpZipPath, ROOT_DIR);
+			replaced = true;
+
+			this._closeAllEditorTabs();
+			this.fileContents = new Map();
+			if (this.mgr.treeMgr !== null) {
+				this.mgr.treeMgr.expandedPaths = new Set([ROOT_DIR]);
+			}
+
+			this.hasPendingSync = false;
+			this.firstPendingAt = 0;
+
+			if (progress !== null) {
+				progress.update("ファイルツリーを同期中...", 90);
+			}
+			await this.syncFromCheerpX();
+			if (progress !== null) {
+				progress.update("完了しました", 100);
+				progress.close();
+				progress = null;
+			}
+			this._notifyToast("ZIPからワークスペースを復元しました。");
+		} catch (err) {
+			console.error("Failed to import workspace ZIP:", err);
+			if (progress !== null) {
+				progress.close();
+				progress = null;
+			}
+			if (replaced === true) {
+				this._notifyToast("復元は完了しましたが、表示の更新に失敗しました。更新ボタンを押してください。");
+			} else {
+				this._notifyToast(`アップロードに失敗しました: ${err.message}`);
+			}
+		} finally {
+			if (progress !== null) {
+				progress.close();
+				progress = null;
+			}
+			this.isSyncing = false;
+			this.isTransferringZip = false;
 		}
 	}
 }
