@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>サードパーティライセンス | CHASEN</title>
+		<link rel="stylesheet" href="./assets/css/documents.css">
+	</head>
+	<body>
+		<p><a href="index.html">← TOPへ戻る</a></p>
+		<h1>サードパーティライセンス情報</h1>
+		<p>CHASEN では以下のサードパーティ製ソフトウェアおよびフォントを使用しています。</p>
+
+		<section>
+			<h2>CheerpX (v1.2.8)</h2>
+			<div class="meta">ライセンス: Proprietary（Leaning Technologies 独自ライセンス） / <a href="https://cheerpx.io/licensing" target="_blank" rel="noopener noreferrer">公式ライセンス情報</a></div>
+			<p>本ソフトウェアの実行基盤として CheerpX を利用しています。商用利用・法人利用・再配布等を行う場合は、Leaning Technologies 社の定めるライセンス条件に従う必要があります。</p>
+		</section>
+
+		<section>
+			<h2>Monaco Editor (v0.45.0)</h2>
+			<div class="meta">ライセンス: MIT License / <a href="https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the MIT License.</pre>
+		</section>
+
+		<section>
+			<h2>xterm.js (v5.3.0) / xterm-addon-fit (v0.8.0)</h2>
+			<div class="meta">ライセンス: MIT License / <a href="https://github.com/xtermjs/xterm.js/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) 2017-2023, The xterm.js authors (MIT License)
+Copyright (c) 2014-2017, SourceLair, Private Company (MIT License)
+Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)</pre>
+		</section>
+
+		<section>
+			<h2>Wunderbaum (v0.15.0)</h2>
+			<div class="meta">ライセンス: MIT License / <a href="https://github.com/mar10/wunderbaum/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) 2021-2026 Martin Wendt
+Licensed under the MIT License.</pre>
+		</section>
+
+		<section>
+			<h2>Lumino (@lumino/widgets v2.3.0, @lumino/coreutils, @lumino/signaling, @lumino/virtualdom v2.1.2)</h2>
+			<div class="meta">ライセンス: BSD 3-Clause License / <a href="https://github.com/jupyterlab/lumino/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) Project Jupyter Contributors.
+All rights reserved.
+Licensed under the BSD 3-Clause License.</pre>
+		</section>
+
+		<section>
+			<h2>Bootstrap Icons (v1.10.0)</h2>
+			<div class="meta">ライセンス: MIT License / <a href="https://github.com/twbs/icons/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) 2019-2023 The Bootstrap Authors
+Licensed under the MIT License.</pre>
+		</section>
+
+		<section>
+			<h2>Material Symbols Outlined</h2>
+			<div class="meta">ライセンス: Apache License 2.0 / <a href="https://github.com/google/material-design-icons/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) Google LLC
+Licensed under the Apache License, Version 2.0.</pre>
+		</section>
+
+		<h2>仮想環境（全言語共通ベースイメージ）</h2>
+		<p>実行環境のディスクイメージには、以下のソフトウェアが含まれています。</p>
+
+		<section>
+			<h3>Alpine Linux (i386/alpine)</h3>
+			<div class="meta">ライセンス: MIT License / GPL-2.0 / その他各種OSSライセンス / <a href="https://alpinelinux.org/" target="_blank" rel="noopener noreferrer">Alpine Linux 公式サイト</a></div>
+			<p>ベースOS環境として Alpine Linux（busybox, musl libc 等を含む）を使用しています。各パッケージのライセンスおよびソースコードは <a href="https://pkgs.alpinelinux.org/packages" target="_blank" rel="noopener noreferrer">Alpine Linux Packages</a> より入手可能です。</p>
+		</section>
+
+		<section>
+			<h3>zip / unzip (Info-ZIP)</h3>
+			<div class="meta">ライセンス: Info-ZIP License / <a href="https://infozip.sourceforge.net/license.html" target="_blank" rel="noopener noreferrer">LICENSE</a></div>
+			<pre>Copyright (c) 1990-2009 Info-ZIP. All rights reserved.</pre>
+		</section>
+
+		<section>
+			<h3>inotify-tools</h3>
+			<div class="meta">ライセンス: GNU General Public License v2.0 (GPL-2.0) / <a href="https://github.com/inotify-tools/inotify-tools/blob/master/COPYING" target="_blank" rel="noopener noreferrer">COPYING</a></div>
+			<pre>Copyright (c) 2006-2007 Rohan McGovern
+Licensed under the GNU General Public License, version 2.</pre>
+		</section>
+
+		<h2>言語別環境</h2>
+
+		<section>
+			<h3>C / C++ 環境（Alpine build-base）</h3>
+			<div class="meta">ライセンス: GPL-3.0 / GPL-2.0 / MIT / BSD / その他各種OSSライセンス（パッケージごとに異なります）</div>
+			<p>C / C++ のコンパイル・ビルド環境として Alpine Linux の <code>build-base</code> パッケージ群（GCC, G++, GNU Binutils, GNU Make, musl-dev, fortify-headers 等）を使用しています。各パッケージの正確なバージョンとライセンスは、イメージ内のパッケージ管理情報（<code>apk info</code>）またはビルド時のログから確認できます。</p>
+			<p>GPL 等のライセンスに基づく各ソフトウェアのソースコードおよびパッケージ定義（aports）は、<a href="https://pkgs.alpinelinux.org/packages" target="_blank" rel="noopener noreferrer">Alpine Linux Packages</a> および <a href="https://gitlab.alpinelinux.org/alpine/aports" target="_blank" rel="noopener noreferrer">Alpine aports リポジトリ</a> から参照・入手できます。</p>
+		</section>
+
+		<p><a href="index.html">← TOPへ戻る</a></p>
+	</body>
+</html>
