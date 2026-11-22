@@ -98,6 +98,13 @@ export class WorkspaceManager {
 			this.termMgr.term.onData(() => {
 				self.syncCtrl.recordTerminalInput(Date.now());
 			});
+			if (typeof this.termMgr.onResize === "function") {
+				this.termMgr.onResize((cols, rows) => {
+					if (self.runner !== null && typeof self.runner.resizeConsole === "function") {
+						self.runner.resizeConsole(cols, rows);
+					}
+				});
+			}
 		}
 
 		this.editorMgr.initDockPanel();

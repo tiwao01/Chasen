@@ -34,6 +34,7 @@ export class CheerpXRunner {
 		this.runOpt = defRunOpt;
 		this.cx = null;
 		this.sendFunc = null;
+		this._consoleWriteHandler = null;
 
 		if (defaultOptions !== undefined) {
 			if (defaultOptions.decCode !== undefined) {
@@ -143,6 +144,27 @@ export class CheerpXRunner {
 	 */
 	async startWorkspaceWatcher (targetDir) {
 		await this.watcher.startWorkspaceWatcher(targetDir);
+	}
+
+	/**
+	 * Updates console dimensions when the terminal resizes.
+	 * @param {number} cols - New column count.
+	 * @param {number} rows - New row count.
+	 * @returns {void}
+	 */
+	resizeConsole (cols, rows) {
+		let safeCols = 0;
+		let safeRows = 0;
+
+		if (this.cx === null || this._consoleWriteHandler === null) {
+			return;
+		}
+		if (typeof cols !== "number" || typeof rows !== "number" || cols <= 0 || rows <= 0) {
+			return;
+		}
+		safeCols = Math.floor(cols);
+		safeRows = Math.floor(rows);
+		this.sendFunc = this.cx.setCustomConsole(this._consoleWriteHandler, safeCols, safeRows);
 	}
 
 	/**
@@ -390,28 +412,29 @@ export class CheerpXRunner {
 			);
 
 			dec = new TextDecoder(decCode);
+			this._consoleWriteHandler = (buf) => {
+				txt = dec.decode(
+					buf,
+					{
+						stream: true
+					}
+				);
+				if (this.fs.isCapturing) {
+					this.fs.captureBuffer = this.fs.captureBuffer + txt;
+					return;
+				}
+				if (this.fs.isSilent) {
+					return;
+				}
+				cleanedTxt = this.watcher.consumeChangeMarkers(txt);
+				if (cleanedTxt === "") {
+					return;
+				}
+				normd = cleanedTxt.replace(/\r?\n/g, "\r\n");
+				term.write(normd);
+			};
 			this.sendFunc = this.cx.setCustomConsole(
-				(buf) => {
-					txt = dec.decode(
-						buf,
-						{
-							stream: true
-						}
-					);
-					if (this.fs.isCapturing) {
-						this.fs.captureBuffer = this.fs.captureBuffer + txt;
-						return;
-					}
-					if (this.fs.isSilent) {
-						return;
-					}
-					cleanedTxt = this.watcher.consumeChangeMarkers(txt);
-					if (cleanedTxt === "") {
-						return;
-					}
-					normd = cleanedTxt.replace(/\n/g, "\r\n");
-					term.write(normd);
-				},
+				this._consoleWriteHandler,
 				term.cols,
 				term.rows
 			);

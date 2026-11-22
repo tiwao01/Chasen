@@ -556,6 +556,7 @@ export class CheerpXFsClient {
 	async readFile (filePath) {
 		let cmd = "";
 		let b64 = "";
+		let sanitizedB64 = "";
 		let bStr = "";
 		let bytes = null;
 		let dec = null;
@@ -564,14 +565,17 @@ export class CheerpXFsClient {
 
 		cmd = `base64 "${filePath}" | tr -d '\\r\\n'`;
 		b64 = await this.execSilentOutput(cmd);
-		b64 = b64.trim();
+		sanitizedB64 = b64.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "");
+		sanitizedB64 = sanitizedB64.replace(/[\x00-\x1f\x7f\s]/g, "");
+		sanitizedB64 = sanitizedB64.replace(/[^A-Za-z0-9+/=]/g, "");
+		sanitizedB64 = sanitizedB64.trim();
 
-		if (b64 === "") {
+		if (sanitizedB64 === "") {
 			return "";
 		}
 
 		try {
-			bStr = atob(b64);
+			bStr = atob(sanitizedB64);
 			bytes = new Uint8Array(bStr.length);
 			for (i = 0; i < bStr.length; i++) {
 				bytes[i] = bStr.charCodeAt(i);

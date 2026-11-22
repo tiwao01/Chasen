@@ -59,7 +59,6 @@ export class WorkspaceWatcher {
 
 		combined = this._lineCarry + chunk;
 		this._lineCarry = "";
-		combined = combined.replace(/\r\n/g, "\n");
 		endsWithNewline = combined.endsWith("\n");
 		parts = combined.split("\n");
 
@@ -72,7 +71,7 @@ export class WorkspaceWatcher {
 			if (cleanTail === WORKSPACE_CHANGE_MARKER || (cleanTail.startsWith("__CX_") && WORKSPACE_CHANGE_MARKER.startsWith(cleanTail))) {
 				this._lineCarry = cleanTail;
 			} else {
-				filtered.push(cleanTail);
+				filtered.push(tail);
 			}
 		}
 
@@ -86,7 +85,7 @@ export class WorkspaceWatcher {
 				hasChanged = true;
 				strippedAnyMarker = true;
 			} else {
-				filtered.push(cleanLine);
+				filtered.push(rawLine);
 			}
 		}
 
