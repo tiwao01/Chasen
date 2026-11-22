@@ -337,6 +337,7 @@ export class CheerpXRunner {
 		let httpDev = null;
 		let idbDev = null;
 		let overlayDev = null;
+		let blobDev = null;
 		let dec = null;
 		let enc = null;
 		let decCode = "";
@@ -371,7 +372,8 @@ export class CheerpXRunner {
 				httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
 				overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
 			} else {
-				overlayDev = idbDev;
+				blobDev = await CheerpX.BlobDevice.create(imgPath);
+				overlayDev = await CheerpX.OverlayDevice.create(blobDev, idbDev);
 			}
 
 			this.cx = await CheerpX.Linux.create(
