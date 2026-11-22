@@ -1,3 +1,6 @@
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+
+/assets/js/rootfs-service-worker.js
+  Service-Worker-Allowed: /
