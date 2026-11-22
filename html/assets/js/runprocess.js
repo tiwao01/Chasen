@@ -369,12 +369,18 @@ export class CheerpXRunner {
 		try {
 			idbDev = await CheerpX.IDBDevice.create(dbName);
 			if (typeof imgPath === "string") {
-				httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
-				overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
+				targetUrl = imgPath;
 			} else {
-				blobDev = await CheerpX.BlobDevice.create(imgPath);
-				overlayDev = await CheerpX.OverlayDevice.create(blobDev, idbDev);
+				targetUrl = URL.createObjectURL(imgPath);
 			}
+			try {
+				httpDev = await CheerpX.HttpBytesDevice.create(targetUrl);
+			} finally {
+				if (typeof imgPath !== "string" && targetUrl !== "") {
+					URL.revokeObjectURL(targetUrl);
+				}
+			}
+			overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
 
 			this.cx = await CheerpX.Linux.create(
 				{

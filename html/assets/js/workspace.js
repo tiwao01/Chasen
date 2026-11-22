@@ -241,7 +241,8 @@ export class WorkspaceManager {
 			self._handleLoaderProgress(badgeElm, lang, progress);
 		});
 
-		return loaded.file;
+		this._objectUrl = URL.createObjectURL(loaded.file);
+		return this._objectUrl;
 	}
 
 	/**
