@@ -124,7 +124,13 @@ async function handleOpfsRootfsImageRequest (request) {
 		fileHandle = await rootDir.getFileHandle(fileName, { create: false });
 		file = await fileHandle.getFile();
 	} catch (err) {
-		return new Response("Rootfs image not found in OPFS", { status: 404 });
+		return new Response(`Rootfs image not found in OPFS: ${fileName}`, {
+			status: 404,
+			headers: {
+				"X-Rootfs-Sw": "opfs-miss",
+				"Cache-Control": "no-store"
+			}
+		});
 	}
 
 	headers = buildImageHeaders(file);

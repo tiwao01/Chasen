@@ -227,7 +227,7 @@ export class WorkspaceManager {
 		let swScriptUrl = "";
 
 		if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
-			throw new Error("このブラウザは Service Worker に非対応です");
+			return false;
 		}
 
 		swScriptUrl = "/assets/js/rootfs-service-worker.js";
@@ -235,31 +235,47 @@ export class WorkspaceManager {
 			scope: "/"
 		});
 
-		if (registration.active !== null && navigator.serviceWorker.controller !== null) {
-			return;
+		if (registration.installing !== null) {
+			await new Promise((resolve) => {
+				let sw = null;
+				let onStateChange = null;
+
+				sw = registration.installing;
+				onStateChange = () => {
+					if (sw.state === "activated" || sw.state === "redundant") {
+						sw.removeEventListener("statechange", onStateChange);
+						resolve();
+					}
+				};
+				sw.addEventListener("statechange", onStateChange);
+			});
 		}
 
 		await navigator.serviceWorker.ready;
-		if (navigator.serviceWorker.controller === null) {
-			await new Promise((resolve) => {
-				let onControllerChange = null;
-				let timeoutId = null;
-
-				onControllerChange = () => {
-					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-					if (timeoutId !== null) {
-						clearTimeout(timeoutId);
-					}
-					resolve();
-				};
-
-				navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-				timeoutId = setTimeout(() => {
-					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-					resolve();
-				}, 3000);
-			});
+		if (navigator.serviceWorker.controller !== null) {
+			return true;
 		}
+
+		await new Promise((resolve) => {
+			let onControllerChange = null;
+			let timeoutId = null;
+
+			onControllerChange = () => {
+				navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+				}
+				resolve();
+			};
+
+			navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+			timeoutId = setTimeout(() => {
+				navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+				resolve();
+			}, 3000);
+		});
+
+		return navigator.serviceWorker.controller !== null;
 	}
 
 	/**
@@ -271,8 +287,10 @@ export class WorkspaceManager {
 	async resolveImagePath (lang, badgeElm) {
 		let hostName = "";
 		let isLocalHost = false;
+		let isSwControlled = false;
 		let loader = null;
 		let loaded = null;
+		let targetFileName = "";
 		let self = null;
 
 		self = this;
@@ -287,14 +305,22 @@ export class WorkspaceManager {
 			return this.resolveLocalFallbackUrl(lang);
 		}
 
-		await this._ensureRootfsServiceWorkerReady();
+		isSwControlled = await this._ensureRootfsServiceWorkerReady();
+		if (isSwControlled === false) {
+			return this.resolveLocalFallbackUrl(lang);
+		}
 
 		loader = this._getRootfsLoader();
 		loaded = await loader.ensureExt2InOpfs(lang, (progress) => {
 			self._handleLoaderProgress(badgeElm, lang, progress);
 		});
 
-		return `/opfs-rootfs-image/${loaded.fileName}`;
+		if (loaded === null || loaded === undefined || typeof loaded.fileName !== "string" || loaded.fileName === "") {
+			return this.resolveLocalFallbackUrl(lang);
+		}
+
+		targetFileName = loaded.fileName.replace(/^\/+/, "");
+		return `/opfs-rootfs-image/${encodeURIComponent(targetFileName)}`;
 	}
 
 	/**
