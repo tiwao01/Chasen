@@ -212,6 +212,50 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Registers and waits for the rootfs Service Worker so OPFS ext2 images can be served over HTTP.
+	 * @returns {Promise<void>}
+	 */
+	async _ensureRootfsServiceWorkerReady () {
+		let registration = null;
+		let swScriptUrl = "";
+
+		if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+			throw new Error("このブラウザは Service Worker に非対応です");
+		}
+
+		swScriptUrl = "./rootfs-service-worker.js";
+		registration = await navigator.serviceWorker.register(swScriptUrl, {
+			scope: "./"
+		});
+
+		if (registration.active !== null && navigator.serviceWorker.controller !== null) {
+			return;
+		}
+
+		await navigator.serviceWorker.ready;
+		if (navigator.serviceWorker.controller === null) {
+			await new Promise((resolve) => {
+				let onControllerChange = null;
+				let timeoutId = null;
+
+				onControllerChange = () => {
+					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+					if (timeoutId !== null) {
+						clearTimeout(timeoutId);
+					}
+					resolve();
+				};
+
+				navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+				timeoutId = setTimeout(() => {
+					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+					resolve();
+				}, 3000);
+			});
+		}
+	}
+
+	/**
 	 * Resolves the rootfs image source (OPFS Object URL or fallback URL) for the active language.
 	 * @param {string} lang - Language identifier.
 	 * @param {HTMLElement|null} badgeElm - Status badge element to update.
@@ -236,10 +280,14 @@ export class WorkspaceManager {
 			return this.resolveLocalFallbackUrl(lang);
 		}
 
-		if (loaded !== null && loaded !== undefined) {
-			return this.resolveLocalFallbackUrl(lang);
-		}
-		return this.resolveLocalFallbackUrl(lang);
+		await this._ensureRootfsServiceWorkerReady();
+
+		loader = this._getRootfsLoader();
+		loaded = await loader.ensureExt2InOpfs(lang, (progress) => {
+			self._handleLoaderProgress(badgeElm, lang, progress);
+		});
+
+		return `/opfs-rootfs-image/${loaded.fileName}`;
 	}
 
 	/**
