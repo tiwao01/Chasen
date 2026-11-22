@@ -1,15 +1,9 @@
 FROM	--platform=linux/i386 i386/alpine:latest
 
 RUN	apk update && \
-	apk upgrade && \
 	apk add --no-cache \
-		coreutils \
-		tar \
 		zip \
 		unzip \
-		wget \
-		curl \
-		bash \
 		inotify-tools
 
 WORKDIR	/root

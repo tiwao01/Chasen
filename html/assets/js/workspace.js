@@ -5,6 +5,7 @@ import { InteractiveFileTreeManager } from "./interactive-file-tree-manager.js";
 import { TabManager } from "./tab-manager.js";
 import { EditorDockManager } from "./editor-dock-manager.js";
 import { WorkspaceSyncController } from "./workspace-sync-controller.js";
+import { RootfsOpfsLoader } from "./rootfs-opfs-loader.js";
 
 const DEFAULT_LANG = "c";
 const ROOT_DIR = "/workspace";
@@ -37,6 +38,8 @@ export class WorkspaceManager {
 		this.tabMgr = new TabManager(this);
 		this.editorMgr = new EditorDockManager(this);
 		this.syncCtrl = new WorkspaceSyncController(this);
+		this.rootfsLoader = null;
+		this._objectUrl = null;
 	}
 
 	/**
@@ -108,26 +111,125 @@ export class WorkspaceManager {
 	}
 
 	/**
-	 * Resolves the rootfs image URL for the active language.
+	 * Resolves fallback local ext2 URL for a language.
 	 * @param {string} lang - Language identifier.
 	 * @returns {string}
 	 */
-	resolveImagePath (lang) {
+	resolveLocalFallbackUrl (lang) {
+		return `/dist/rootfs-${lang}.ext2`;
+	}
+
+	/**
+	 * Creates and returns the OPFS rootfs loader instance.
+	 * @returns {RootfsOpfsLoader}
+	 */
+	_getRootfsLoader () {
+		let baseDir = "/assets/rootfs";
+		let imageVersion = "default";
+		let self = null;
+
+		if (this.rootfsLoader !== null) {
+			return this.rootfsLoader;
+		}
+
+		self = this;
+		if (typeof window.ROOTFS_BASE_URL === "string" && window.ROOTFS_BASE_URL.trim() !== "") {
+			baseDir = window.ROOTFS_BASE_URL.trim();
+		}
+		if (typeof window.ROOTFS_IMAGE_VERSION === "string" && window.ROOTFS_IMAGE_VERSION.trim() !== "") {
+			imageVersion = window.ROOTFS_IMAGE_VERSION.trim();
+		}
+
+		this.rootfsLoader = new RootfsOpfsLoader({
+			baseDir: baseDir,
+			imageVersion: imageVersion,
+			resolveFallbackUrl: (targetLang) => {
+				return self.resolveLocalFallbackUrl(targetLang);
+			}
+		});
+		return this.rootfsLoader;
+	}
+
+	/**
+	 * Formats byte count into a human-readable megabyte string.
+	 * @param {number} bytes - Byte count.
+	 * @returns {string}
+	 */
+	_formatMb (bytes) {
+		let mb = 0;
+
+		if (typeof bytes !== "number" || bytes <= 0) {
+			return "0.0 MB";
+		}
+		mb = bytes / (1024 * 1024);
+		return `${mb.toFixed(1)} MB`;
+	}
+
+	/**
+	 * Updates status badge and toast during OPFS image loading.
+	 * @param {HTMLElement|null} badgeElm - Status badge element.
+	 * @param {string} lang - Language identifier.
+	 * @param {object} progress - Progress payload from RootfsOpfsLoader.
+	 * @returns {void}
+	 */
+	_handleLoaderProgress (badgeElm, lang, progress) {
+		let msg = "";
+
+		if (progress === null || progress === undefined) {
+			return;
+		}
+
+		if (progress.phase === "downloading") {
+			msg = `イメージ取得中 (${lang}: ${progress.partCount}チャンク)`;
+			if (badgeElm !== null) {
+				badgeElm.textContent = msg;
+			}
+			return;
+		}
+
+		if (progress.phase === "extracting") {
+			msg = `展開・保存中 (${lang}: ${this._formatMb(progress.writtenBytes)})`;
+			if (badgeElm !== null) {
+				badgeElm.textContent = msg;
+			}
+			return;
+		}
+
+		if (progress.phase === "fallback") {
+			msg = `ローカル取得・保存中 (${lang}: ${this._formatMb(progress.writtenBytes)})`;
+			if (badgeElm !== null) {
+				badgeElm.textContent = msg;
+			}
+			return;
+		}
+
+		if (progress.phase === "cached") {
+			msg = `キャッシュ起動中 (${lang}: ${this._formatMb(progress.writtenBytes)})`;
+			if (badgeElm !== null) {
+				badgeElm.textContent = msg;
+			}
+		}
+	}
+
+	/**
+	 * Resolves the rootfs image source (OPFS Object URL or fallback URL) for the active language.
+	 * @param {string} lang - Language identifier.
+	 * @param {HTMLElement|null} badgeElm - Status badge element to update.
+	 * @returns {Promise<string>}
+	 */
+	async resolveImagePath (lang, badgeElm) {
 		let baseUrl = "";
 		let normalizedBase = "";
-		let resolvedPath = "";
 
 		if (typeof window.ROOTFS_BASE_URL === "string") {
 			baseUrl = window.ROOTFS_BASE_URL.trim();
 		}
-		if (baseUrl !== "") {
+		if (baseUrl !== "" && baseUrl.startsWith("/") === true && baseUrl !== "/assets/rootfs") {
 			normalizedBase = baseUrl.replace(/\/+$/, "");
-			resolvedPath = `${normalizedBase}/rootfs-${lang}.ext2`;
-			return resolvedPath;
+			return `${normalizedBase}/rootfs-${lang}.ext2`;
 		}
 
-		resolvedPath = `/dist/rootfs-${lang}.ext2`;
-		return resolvedPath;
+		return this.resolveLocalFallbackUrl(lang);
 	}
 
 	/**
@@ -149,7 +251,7 @@ export class WorkspaceManager {
 					self.syncCtrl.handleWorkspaceChangeSignal();
 				}
 			});
-			imgPath = this.resolveImagePath(this.lang);
+			imgPath = await this.resolveImagePath(this.lang, badgeElm);
 			dbName = `cache_${this.lang}`;
 
 			this.ui.updateBadgeRunning(badgeElm, this.lang);

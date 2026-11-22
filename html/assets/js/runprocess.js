@@ -328,7 +328,7 @@ export class CheerpXRunner {
 	 * @param {string} exPath - Executable path to run.
 	 * @param {string[]} args - Arguments passed to the executable.
 	 * @param {Object} term - Terminal instance with `cols`, `rows`, `write`, and `onData`.
-	 * @param {string} imgPath - URL or path to the disk image for HttpBytesDevice.
+	 * @param {string} imgPath - URL or Object URL to the disk image for HttpBytesDevice.
 	 * @param {string} dbName - IndexedDB name for IDBDevice.
 	 * @param {Object} [overrideOptions] - Optional per-run overrides for `decCode`, `runOpt`, and `onWorkspaceChange`.
 	 * @returns {Promise<void>}

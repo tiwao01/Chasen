@@ -32,6 +32,14 @@ tasks:
     requires:
       vars: [LANG]
 
+  pack:gz:
+    cmds:
+      - test -f {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.ext2
+      - gzip -c -6 {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.ext2 > {{.OUTPUT_DIR}}/rootfs-{{.LANG}}.ext2.gz
+    desc: "Compress rootfs-<lang>.ext2 into dist/rootfs-<lang>.ext2.gz for GitHub Releases upload. (Required: LANG=<lang>)"
+    requires:
+      vars: [LANG]
+
   build:pages:
     cmds:
       - rm -rf {{.PAGES_DIR}}
@@ -41,13 +49,20 @@ tasks:
       - rm -rf {{.PAGES_DIR}}/dist
     desc: "Prepare static files for Cloudflare Pages without large .ext2 images."
 
+  sync:local-dist:
+    cmds:
+      - test -d {{.OUTPUT_DIR}}
+      - mkdir -p html/dist
+      - cp -f {{.OUTPUT_DIR}}/*.ext2 html/dist/
+    desc: "Copy built .ext2 images from dist/ to html/dist/ for local serving."
+
   clean:
     cmds:
-      - rm -rf {{.OUTPUT_DIR}} {{.PAGES_DIR}}
+      - rm -rf {{.OUTPUT_DIR}} {{.PAGES_DIR}} html/dist
       - podman rmi $(podman images --filter=reference="{{.IMG_FILTER}}" -q)
-    desc: "Remove \"{{.OUTPUT_DIR}}\" and \"{{.PAGES_DIR}}\" directories and remove images filtered \"{{.IMG_FILTER}}\"."
+    desc: "Remove \"{{.OUTPUT_DIR}}\", \"{{.PAGES_DIR}}\", and \"html/dist\" directories and remove images filtered \"{{.IMG_FILTER}}\"."
 
   caddy:run:
     cmds:
-      - "podman run --rm -it -p {{.LOCAL_HOST}}:8080 -v ./html:/html:z -v ./{{.OUTPUT_DIR}}:/html/dist:z -v ./Caddyfile:/etc/caddy/Caddyfile:z caddy:latest"
+      - "podman run --rm -it -p {{.LOCAL_HOST}}:8080 -v ./html:/html:z -v ./Caddyfile:/etc/caddy/Caddyfile:z caddy:latest"
     desc: "Run Caddy web server locally. (Default: LOCAL_HOST=8080)"
