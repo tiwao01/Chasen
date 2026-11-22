@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>ヘルプ | CHASEN</title>
+		<link rel="stylesheet" href="./assets/css/documents.css">
+	</head>
+	<body>
+		<p><a href="index.html">← TOPへ戻る</a></p>
+		<h1>IDEヘルプ</h1>
+		<p>言語環境によらない、CHASEN IDEの基本的な画面構成と操作方法のガイドです。</p>
+
+		<h2>1. 画面構成</h2>
+		<p>CHASEN IDEの画面は、大きく4つのエリアに分かれています。</p>
+		<ul>
+			<li><strong>トップバー（画面上部）</strong>：ホームへの移動、現在の実行環境の確認、プロジェクト全体のZIPダウンロード・アップロード、ヘルプの表示を行います。</li>
+			<li><strong>ファイルエクスプローラー（画面左側）</strong>：プロジェクト内のファイルやフォルダーの一覧表示、新規作成、管理を行います。</li>
+			<li><strong>コードエディタ（画面中央）</strong>：開いたファイルのソースコードを編集します。タブによる複数ファイルの切り替えや、画面分割（ドッキングレイアウト）が可能です。</li>
+			<li><strong>ターミナル（画面下部）</strong>：仮想Linux環境（Alpine Linuxベース）のシェル操作、コンパイル、プログラムの実行、コマンド入力を行います。</li>
+		</ul>
+
+		<h2>2. トップバーの操作</h2>
+		<section>
+			<h3>CHASEN（ホームボタン）</h3>
+			<p>トップページへ戻ります。作業中のデータはブラウザ内の仮想環境に保持されますが、ページ遷移前に必要に応じてダウンロード保存を行うことを推奨します。</p>
+		</section>
+		<section>
+			<h3>環境バッジ</h3>
+			<p>現在起動しているプログラミング言語や実行環境のステータス（起動中は <code>Loading...</code>、準備完了後に<code>環境動作中</code>）が表示されます。</p>
+		</section>
+		<section>
+			<h3>Download（プロジェクトのエクスポート）</h3>
+			<p>現在の作業ディレクトリ<code>/workspace</code>内のファイル一式をZIPアーカイブとしてローカルPCにダウンロードします。作業内容のバックアップや提出用データの作成に使用します。</p>
+            <p><strong>※Download実行時、編集中のすべてのファイルは自動的に保存されます。</strong></p>
+		</section>
+		<section>
+			<h3>Upload（プロジェクトのインポート）</h3>
+			<p>ローカルPCにあるZIPファイルを選択し、仮想環境内の作業ディレクトリに展開・復元します。既存のプロジェクトの続きから作業する場合に使用します。</p>
+            <p><strong>※Uploadすると、作業ディレクトリ<code>/workspace</code>内のすべてのファイルを取り除いて、アップロードされる環境で上書きされます。</strong></p>
+		</section>
+
+		<h2>3. ファイルエクスプローラーの操作</h2>
+		<p>左側のサイドバー（<strong>Files</strong>）からファイル操作を行います。</p>
+		<ul>
+			<li><strong>ファイルを開く</strong>：ツリー内のファイル名をクリックすると、中央のエディタタブに開きます。</li>
+			<li><strong>新しいファイル</strong>：ヘッダーのファイル追加アイコンをクリックし、ファイル名を入力して作成します。</li>
+			<li><strong>新しいフォルダー</strong>：ヘッダーのフォルダー追加アイコンをクリックし、フォルダー名を入力して作成します。</li>
+			<li><strong>最新の情報に更新</strong>：更新アイコンをクリックすると、ターミナル上のコマンド（<code>mkdir</code> や <code>touch</code>、ビルド生成物など）で変更されたファイル状態をツリーに再読み込みします。</li>
+			<li><strong>フォルダーを折りたたむ</strong>：折りたたみアイコンをクリックすると、展開されているすべてのフォルダーを一括で閉じます。</li>
+			<li><strong>コンテキストメニュー・名前変更・削除</strong>：ファイルやフォルダーの右クリックメニュー、またはツリー上の操作から名前の変更（Rename）や削除（Delete）が行えます。</li>
+		</ul>
+
+		<h2>4. コードエディタの使い方</h2>
+		<p>エディタには <strong>Monaco Editor</strong> を採用しており、VS Code に近い操作感でコーディングできます。</p>
+		<ul>
+			<li><strong>タブ切り替え・閉じる</strong>：上部のタブバーから編集するファイルを切り替えます。タブの「×」ボタンでファイルを閉じます。</li>
+			<li><strong>保存</strong>：編集内容は仮想ファイルシステムへ反映されます。保存する場合は <code>Ctrl + S</code>（Macは <code>Cmd + S</code>）を使用します。</li>
+			<li><strong>主なショートカットキー</strong>：
+				<ul>
+					<li><code>Ctrl + F</code> / <code>Cmd + F</code>：ファイル内検索</li>
+					<li><code>Ctrl + H</code> / <code>Cmd + Option + F</code>：置換</li>
+					<li><code>Ctrl + /</code> / <code>Cmd + /</code>：行コメントの切り替え</li>
+					<li><code>Ctrl + Z</code> / <code>Cmd + Z</code>：元に戻す</li>
+					<li><code>F1</code> または <code>Ctrl + Shift + P</code>：コマンドパレットの表示</li>
+				</ul>
+			</li>
+		</ul>
+
+		<h2>5. ターミナルとプログラムの実行</h2>
+		<p>画面下部のターミナルでは、ブラウザ上で動作する仮想Linux環境（x86互換環境 / Alpine Linuxベース）のシェルを直接操作できます。</p>
+		<ul>
+			<li><strong>コマンド入力と実行</strong>：通常のLinuxシェルと同様に、各種コマンドの実行やスクリプトの起動が可能です。</li>
+			<li><strong>コンパイルと実行（例：C / C++ 環境）</strong>：
+				<pre>gcc main.c -o main
+./main</pre>
+			</li>
+			<li><strong>コピー＆ペースト</strong>：ターミナル内のテキストを選択してコピー、または右クリックや <code>Ctrl + Shift + V</code>（環境により <code>Ctrl + V</code> / <code>Cmd + V</code>）で貼り付けができます。</li>
+			<li><strong>実行の中断</strong>：無限ループなどでプログラムが停止しない場合は、ターミナル上をクリックしてフォーカスを当てた状態で <code>Ctrl + C</code> を押すと強制終了できます。</li>
+		</ul>
+
+		<h2>6. 注意事項・トラブルシューティング</h2>
+		<ul>
+			<li><strong>初回起動時の読み込み</strong>：初回アクセス時やキャッシュクリア後は、仮想環境のディスクイメージ（rootfs）のダウンロードと展開に数秒〜数十秒かかる場合があります。トップバーのステータスが変わるまでお待ちください。</li>
+			<li><strong>データの永続化について</strong>：仮想環境内のファイルはブラウザのストレージに保持されますが、ブラウザのサイトデータ削除やシークレットウィンドウの終了によって消去されます。重要なコードはこまめに右上の <strong>Download</strong> ボタンからZIPで保存してください。</li>
+			<li><strong>ファイルツリーに反映されない場合</strong>：ターミナル上で作成したファイルが表示されない場合は、ファイルエクスプローラー右上の「最新の情報に更新」アイコンを押してください。</li>
+		</ul>
+
+		<p><a href="index.html">← TOPへ戻る</a></p>
+	</body>
+</html>

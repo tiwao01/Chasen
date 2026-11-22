@@ -95,6 +95,15 @@ body {
   overflow: hidden;
 }
 
+.btn-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.btn-link:hover {
+  text-decoration: none;
+}
+
 .ide-sidebar,
 .file-tree-container {
   flex: 0 0 var(--sidebar-width);
