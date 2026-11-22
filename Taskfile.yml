@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   OUTPUT_DIR: "dist"
+  PAGES_DIR: "pages-dist"
   IMG_FILTER: "wasm-alpine-*"
   LOCAL_HOST: '{{.LOCAL_HOST | default "8080"}}'
 
@@ -31,11 +32,20 @@ tasks:
     requires:
       vars: [LANG]
 
+  build:pages:
+    cmds:
+      - rm -rf {{.PAGES_DIR}}
+      - mkdir -p {{.PAGES_DIR}}
+      - cp -r ./html/* {{.PAGES_DIR}}/
+      - cp ./html/_headers {{.PAGES_DIR}}/_headers
+      - rm -rf {{.PAGES_DIR}}/dist
+    desc: "Prepare static files for Cloudflare Pages without large .ext2 images."
+
   clean:
     cmds:
-      - rm -rf {{.OUTPUT_DIR}}
+      - rm -rf {{.OUTPUT_DIR}} {{.PAGES_DIR}}
       - podman rmi $(podman images --filter=reference="{{.IMG_FILTER}}" -q)
-    desc: "Remove \"{{.OUTPUT_DIR}}\" directory and remove images filtered \"{{.IMG_FILTER}}\"."
+    desc: "Remove \"{{.OUTPUT_DIR}}\" and \"{{.PAGES_DIR}}\" directories and remove images filtered \"{{.IMG_FILTER}}\"."
 
   caddy:run:
     cmds:

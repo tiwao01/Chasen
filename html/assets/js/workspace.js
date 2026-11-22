@@ -108,6 +108,29 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Resolves the rootfs image URL for the active language.
+	 * @param {string} lang - Language identifier.
+	 * @returns {string}
+	 */
+	resolveImagePath (lang) {
+		let baseUrl = "";
+		let normalizedBase = "";
+		let resolvedPath = "";
+
+		if (typeof window.ROOTFS_BASE_URL === "string") {
+			baseUrl = window.ROOTFS_BASE_URL.trim();
+		}
+		if (baseUrl !== "") {
+			normalizedBase = baseUrl.replace(/\/+$/, "");
+			resolvedPath = `${normalizedBase}/rootfs-${lang}.ext2`;
+			return resolvedPath;
+		}
+
+		resolvedPath = `/dist/rootfs-${lang}.ext2`;
+		return resolvedPath;
+	}
+
+	/**
 	 * Starts the CheerpX Linux environment and waits until the instance is ready.
 	 * @param {HTMLElement|null} badgeElm - Status badge element to update.
 	 * @returns {Promise<void>}
@@ -126,7 +149,7 @@ export class WorkspaceManager {
 					self.syncCtrl.handleWorkspaceChangeSignal();
 				}
 			});
-			imgPath = `/dist/rootfs-${this.lang}.ext2`;
+			imgPath = this.resolveImagePath(this.lang);
 			dbName = `cache_${this.lang}`;
 
 			this.ui.updateBadgeRunning(badgeElm, this.lang);

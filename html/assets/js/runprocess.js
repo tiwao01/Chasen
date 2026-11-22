@@ -425,7 +425,11 @@ export class CheerpXRunner {
 
 			await this.cx.run(exPath, args, runOpt);
 		} catch (err) {
-			console.error("Error starting process:", err);
+			let detailMsg = "";
+
+			detailMsg = `Error starting process (imgPath=${imgPath}, dbName=${dbName}):`;
+			console.error(detailMsg, err);
+			throw err;
 		}
 	}
 }
