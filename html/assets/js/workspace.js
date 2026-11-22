@@ -223,9 +223,9 @@ export class WorkspaceManager {
 			throw new Error("このブラウザは Service Worker に非対応です");
 		}
 
-		swScriptUrl = "./rootfs-service-worker.js";
+		swScriptUrl = "/assets/js/rootfs-service-worker.js";
 		registration = await navigator.serviceWorker.register(swScriptUrl, {
-			scope: "./"
+			scope: "/"
 		});
 
 		if (registration.active !== null && navigator.serviceWorker.controller !== null) {
