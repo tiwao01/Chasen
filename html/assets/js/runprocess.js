@@ -366,9 +366,13 @@ export class CheerpXRunner {
 		}
 
 		try {
-			httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
 			idbDev = await CheerpX.IDBDevice.create(dbName);
-			overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
+			if (typeof imgPath === "string") {
+				httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
+				overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
+			} else {
+				overlayDev = idbDev;
+			}
 
 			this.cx = await CheerpX.Linux.create(
 				{
