@@ -444,6 +444,8 @@ export class FileTreeManager {
 		let dirPath = "";
 		let newPath = "";
 		let isFolder = false;
+		let i = 0;
+		let p = "";
 
 		newName = e.input.value.trim ();
 		if (newName === "") {
@@ -455,6 +457,22 @@ export class FileTreeManager {
 		newPath = dirPath + "/" + newName;
 		if (oldPath === newPath) {
 			return true;
+		}
+
+		if (this.mgr !== null && this.mgr.fileContents instanceof Map) {
+			if (this.mgr.fileContents.has (newPath) === true) {
+				alert (`"${newName}" はすでに存在します。`);
+				return false;
+			}
+		}
+		if (Array.isArray (this.lastPaths) === true) {
+			for (i = 0; i < this.lastPaths.length; i++) {
+				p = this.lastPaths[i].replace (/\/+$/, "");
+				if (p === newPath) {
+					alert (`"${newName}" はすでに存在します。`);
+					return false;
+				}
+			}
 		}
 
 		isFolder = this.isNodeFolder (e.node);

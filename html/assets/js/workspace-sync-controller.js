@@ -250,6 +250,163 @@ export class WorkspaceSyncController {
 	}
 
 	/**
+	 * Creates an empty file at fullPath, syncs workspace, and opens it in the editor.
+	 * @param {string} fullPath - Full target file path.
+	 * @returns {Promise<void>}
+	 */
+	async createFileAtPath (fullPath) {
+		let runner = null;
+
+		if (fullPath === "") {
+			return;
+		}
+
+		if (!(this.fileContents instanceof Map)) {
+			this.fileContents = new Map();
+		}
+		this.fileContents.set(fullPath, "");
+
+		runner = this.mgr !== null ? this.mgr.runner : null;
+		if (runner !== null) {
+			await runner.writeFile(fullPath, "");
+		}
+
+		await this.syncFromCheerpX();
+		if (this.mgr !== null && this.mgr.editorMgr !== null) {
+			this.mgr.editorMgr.openFile(fullPath);
+		}
+	}
+
+	/**
+	 * Creates a directory at fullPath and syncs the workspace.
+	 * @param {string} fullPath - Full target directory path.
+	 * @returns {Promise<void>}
+	 */
+	async createFolderAtPath (fullPath) {
+		let keepFilePath = "";
+		let runner = null;
+
+		if (fullPath === "") {
+			return;
+		}
+
+		runner = this.mgr !== null ? this.mgr.runner : null;
+		if (runner !== null) {
+			if (typeof runner.createDirectory === "function") {
+				await runner.createDirectory(fullPath);
+			} else if (typeof runner.mkdir === "function") {
+				await runner.mkdir(fullPath);
+			} else {
+				keepFilePath = fullPath + "/.gitkeep";
+				await runner.writeFile(keepFilePath, "");
+				if (typeof runner.removeFile === "function") {
+					await runner.removeFile(keepFilePath);
+				}
+			}
+		}
+
+		await this.syncFromCheerpX();
+	}
+
+	/**
+	 * Deletes a file or directory at targetPath, closes matching editor tabs, and syncs.
+	 * @param {string} targetPath - Full path to remove.
+	 * @param {boolean} isFolder - True if target is a directory.
+	 * @returns {Promise<void>}
+	 */
+	async deletePath (targetPath, isFolder) {
+		let runner = null;
+		let normTarget = "";
+		let openKeys = [];
+		let i = 0;
+		let key = "";
+
+		if (this.mgr === null || this.mgr.runner === null || this.mgr.runner.cx === null) {
+			return;
+		}
+		normTarget = targetPath.replace(/\/+$/, "");
+		if (normTarget === "" || normTarget === ROOT_DIR) {
+			return;
+		}
+
+		runner = this.mgr.runner;
+		this.isSyncing = true;
+		try {
+			if (typeof runner.removeFile === "function") {
+				await runner.removeFile(normTarget);
+			}
+
+			if (this.fileContents instanceof Map) {
+				if (isFolder === true) {
+					openKeys = Array.from(this.fileContents.keys());
+					for (i = 0; i < openKeys.length; i++) {
+						key = openKeys[i];
+						if (key === normTarget || key.startsWith(normTarget + "/")) {
+							this.fileContents.delete(key);
+						}
+					}
+				} else {
+					this.fileContents.delete(normTarget);
+				}
+			}
+
+			if (this.mgr.editorMgr !== null && this.mgr.editorMgr.openWidgets instanceof Map) {
+				openKeys = Array.from(this.mgr.editorMgr.openWidgets.keys());
+				for (i = 0; i < openKeys.length; i++) {
+					key = openKeys[i];
+					if (isFolder === true) {
+						if (key === normTarget || key.startsWith(normTarget + "/")) {
+							this.mgr.editorMgr.closeFile(key);
+						}
+					} else if (key === normTarget) {
+						this.mgr.editorMgr.closeFile(key);
+					}
+				}
+			}
+
+			await this.syncFromCheerpX();
+		} finally {
+			this.isSyncing = false;
+			if (this.hasPendingSync === true) {
+				this._scheduleDeferredSync();
+			}
+		}
+	}
+
+	/**
+	 * Closes editor tabs corresponding to a deleted file or directory.
+	 * @param {string} targetPath - Normalized deleted path without trailing slash.
+	 * @param {boolean} isFolder - True if target is a directory.
+	 * @returns {void}
+	 */
+	_closeTabsForDeletedPath (targetPath, isFolder) {
+		let openWidgets = null;
+		let keys = [];
+		let i = 0;
+		let key = "";
+
+		if (this.mgr === null || typeof this.mgr.closeFile !== "function") {
+			return;
+		}
+		openWidgets = this.mgr.openWidgets;
+		if (!(openWidgets instanceof Map)) {
+			return;
+		}
+
+		keys = Array.from (openWidgets.keys ());
+		for (i = 0; i < keys.length; i++) {
+			key = keys[i];
+			if (isFolder === true) {
+				if (key === targetPath || key.startsWith (targetPath + "/")) {
+					this.mgr.closeFile (key);
+				}
+			} else if (key === targetPath) {
+				this.mgr.closeFile (key);
+			}
+		}
+	}
+
+	/**
 	 * Copies or moves a file or folder into destDir and synchronizes the workspace.
 	 * @param {"copy"|"move"} mode - Operation mode.
 	 * @param {string} sourcePath - Source file or directory path.

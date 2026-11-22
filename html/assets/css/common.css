@@ -238,6 +238,111 @@ body {
   color: var(--ide-text-bright);
 }
 
+.editor-tab-context-item:disabled {
+  color: var(--ide-text-tab);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.editor-tab-context-item:disabled:hover {
+  background-color: transparent;
+  color: var(--ide-text-tab);
+}
+
+.file-tree-context-divider {
+  border: 0;
+  border-top: 1px solid var(--ide-bg-surface);
+  margin: 4px 0;
+}
+
+.ws-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--ide-shadow-menu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.ws-modal-dialog {
+  background-color: var(--ide-bg-base);
+  color: var(--ide-text-main);
+  border: 1px solid var(--ide-border-menu);
+  border-radius: var(--border-radius-lg);
+  padding: 16px;
+  width: 380px;
+  max-width: 90vw;
+  box-shadow: 0 4px 12px var(--ide-shadow-menu);
+}
+
+.ws-modal-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--ide-text-bright);
+  margin-bottom: 8px;
+}
+
+.ws-modal-message {
+  font-size: 12px;
+  color: var(--ide-text-main);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+
+.ws-modal-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ide-text-muted);
+  margin-bottom: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ws-modal-checkbox-row input[type="checkbox"] {
+  accent-color: var(--ide-accent-primary);
+  cursor: pointer;
+}
+
+.ws-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ws-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--ide-border-light);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ws-modal-btn-cancel {
+  background-color: var(--ide-bg-btn);
+  color: var(--ide-text-bright);
+}
+
+.ws-modal-btn-cancel:hover {
+  background-color: var(--ide-bg-btn-hover);
+}
+
+.ws-modal-btn-danger {
+  background-color: var(--ide-accent-primary);
+  border-color: var(--ide-accent-border);
+  color: var(--ide-text-bright);
+}
+
+.ws-modal-btn-danger:hover {
+  background-color: var(--ide-accent-menu);
+}
+
 #dock-container {
   flex: 1 1 0;
   min-height: 0;
