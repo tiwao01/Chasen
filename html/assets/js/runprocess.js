@@ -337,7 +337,7 @@ export class CheerpXRunner {
 		let httpDev = null;
 		let idbDev = null;
 		let overlayDev = null;
-		let blobDev = null;
+		let targetUrl = "";
 		let dec = null;
 		let enc = null;
 		let decCode = "";
@@ -369,16 +369,10 @@ export class CheerpXRunner {
 		try {
 			idbDev = await CheerpX.IDBDevice.create(dbName);
 			if (typeof imgPath === "string") {
-				targetUrl = imgPath;
+				httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
 			} else {
 				targetUrl = URL.createObjectURL(imgPath);
-			}
-			try {
 				httpDev = await CheerpX.HttpBytesDevice.create(targetUrl);
-			} finally {
-				if (typeof imgPath !== "string" && targetUrl !== "") {
-					URL.revokeObjectURL(targetUrl);
-				}
 			}
 			overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
 
