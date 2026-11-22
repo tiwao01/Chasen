@@ -337,7 +337,6 @@ export class CheerpXRunner {
 		let httpDev = null;
 		let idbDev = null;
 		let overlayDev = null;
-		let targetUrl = "";
 		let dec = null;
 		let enc = null;
 		let decCode = "";
@@ -368,12 +367,10 @@ export class CheerpXRunner {
 
 		try {
 			idbDev = await CheerpX.IDBDevice.create(dbName);
-			if (typeof imgPath === "string") {
-				httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
-			} else {
-				targetUrl = URL.createObjectURL(imgPath);
-				httpDev = await CheerpX.HttpBytesDevice.create(targetUrl);
+			if (typeof imgPath !== "string" || imgPath === "") {
+				throw new Error("HttpBytesDevice には有効な HTTP URL を指定してください");
 			}
+			httpDev = await CheerpX.HttpBytesDevice.create(imgPath);
 			overlayDev = await CheerpX.OverlayDevice.create(httpDev, idbDev);
 
 			this.cx = await CheerpX.Linux.create(

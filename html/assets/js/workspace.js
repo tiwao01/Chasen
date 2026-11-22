@@ -236,13 +236,10 @@ export class WorkspaceManager {
 			return this.resolveLocalFallbackUrl(lang);
 		}
 
-		loader = this._getRootfsLoader();
-		loaded = await loader.ensureExt2InOpfs(lang, (progress) => {
-			self._handleLoaderProgress(badgeElm, lang, progress);
-		});
-
-		this._objectUrl = URL.createObjectURL(loaded.file);
-		return this._objectUrl;
+		if (loaded !== null && loaded !== undefined) {
+			return this.resolveLocalFallbackUrl(lang);
+		}
+		return this.resolveLocalFallbackUrl(lang);
 	}
 
 	/**
