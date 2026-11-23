@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>sh / Bash環境マニュアル | CHASEN</title>
+		<link rel="stylesheet" href="../assets/css/documents.css">
+		<link rel="icon" href="../assets/img/main.svg" type="image/svg+xml">
+	</head>
+	<body>
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+		<h1>sh / Bash環境マニュアル</h1>
+		<p>本環境で sh / Bash や Unix コマンドを使って操作・スクリプト実行するときの手順と注意点をまとめています。</p>
+
+		<section>
+			<h2>実行方法</h2>
+			<p>シェルスクリプトファイルを <code>sh</code> または <code>bash</code> コマンドに渡すか、直接 Unix コマンドを入力して実行します。</p>
+<pre>
+bash sample.sh
+</pre>
+
+			<h3>実行例</h3>
+			<p><code>hello.sh</code> を作成して <code>bash</code>（または <code>sh</code>）で実行します。</p>
+<pre>
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Hello, World!"
+pwd
+ls -la
+</pre>
+<pre>
+bash hello.sh
+</pre>
+		</section>
+
+		<section>
+			<h2>注意点</h2>
+			<ul>
+				<li><strong><code>sh</code> と <code>bash</code> の両方を利用できます</strong>：標準の <code>sh</code> に加えて <code>bash</code> も導入されているため、目的に応じて使い分けてください。</li>
+				<li><strong>追加パッケージの取得には非対応です</strong>：オフライン・最小構成の環境のため、実行中に外部リポジトリからパッケージを追加取得する前提では書かないでください。</li>
+				<li><strong>ファイル操作の影響に注意してください</strong>：<code>rm</code> や上書きリダイレクトなどのコマンドは作業ディレクトリ内のファイルに直接反映されるため、対象パスを確認してから実行してください。</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>応用・補足</h2>
+
+			<h3>パイプとフィルタコマンドの組み合わせ</h3>
+			<p>テキスト処理や検索の練習では、標準出力をパイプ（<code>|</code>）でつないでコマンドを組み合わせると挙動を確認しやすくなります。</p>
+<pre>
+ls -la | grep ".sh"
+</pre>
+
+			<h3>変数・ループ・条件分岐の検証</h3>
+			<p>配列やブレース展開、<code>for</code> / <code>if</code> などの書き方を短いスクリプトやワンライナーで試せます。</p>
+<pre>
+for name in alpha beta gamma; do
+    echo "item: $name"
+done
+</pre>
+		</section>
+
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+	</body>
+</html>

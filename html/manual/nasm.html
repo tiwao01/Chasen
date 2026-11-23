@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>NASM環境マニュアル | CHASEN</title>
+		<link rel="stylesheet" href="../assets/css/documents.css">
+		<link rel="icon" href="../assets/img/main.svg" type="image/svg+xml">
+	</head>
+	<body>
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+		<h1>NASM環境マニュアル</h1>
+		<p>本環境で NASM を使ってアセンブリを書くときのコンパイル方法と注意点をまとめています。</p>
+
+		<section>
+			<h2>実行方法</h2>
+			<p>アセンブリファイルを <code>nasm</code> でオブジェクト化し、<code>gcc</code> でリンクして実行します。</p>
+<pre>
+nasm -f elf32 sample.asm -o sample.o
+gcc -m32 -no-pie sample.o -o app
+./app
+</pre>
+
+			<h3>実行例</h3>
+			<p><code>hello.asm</code> を作成してビルド・実行します。</p>
+<pre>
+global main
+extern printf
+
+section .rodata
+msg db "Hello, World!", 10, 0
+
+section .text
+main:
+    push msg
+    call printf
+    add esp, 4
+    xor eax, eax
+    ret
+</pre>
+<pre>
+nasm -f elf32 hello.asm -o hello.o
+gcc -m32 -no-pie hello.o -o app
+./app
+</pre>
+		</section>
+
+		<section>
+			<h2>注意点</h2>
+			<ul>
+				<li><strong><code>ld</code> だけでのリンクはできません</strong>：<code>ld</code> 単体での実行ファイル作成は本環境では無理です。<code>gcc -m32 -no-pie</code> でリンクしてください。</li>
+				<li><strong><code>gdb</code> は使えません</strong>：<code>gdb</code> によるデバッグは本環境ではできません。戻り値や計算結果は <code>printf</code> などで出力して確認してください。</li>
+				<li><strong><code>main</code> 定義とおまじないが必要</strong>：<code>gcc</code> でリンクして実行するには、<code>global main</code> で入口を用意し、引数や戻り値を整えて <code>ret</code> で戻る形にする必要があります。</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>応用・補足</h2>
+
+			<h3>Hello World のおまじないの意味</h3>
+			<ul>
+				<li><strong><code>global main</code> / <code>extern printf</code></strong>：<code>gcc</code> から呼ばれる開始地点（<code>main</code>）を公開し、外部の <code>printf</code> を使う宣言です。</li>
+				<li><strong><code>add esp, 4</code></strong>：<code>push msg</code> で積んだ引数（4バイト）をスタックから片付ける処理です。</li>
+				<li><strong><code>xor eax, eax</code> / <code>ret</code></strong>：戻り値を <code>0</code> にして <code>main</code> を終わらせ、呼び出し元へ戻る処理です。</li>
+			</ul>
+
+			<h3>機械語バイト列（<code>db</code>）の記述</h3>
+			<p><code>.asm</code> ファイルの中に <code>db 0x...</code> と書くことで、機械語のバイト列を直接試すこともできます。</p>
+<pre>
+global mc_add1
+
+section .text
+mc_add1:
+    db 0x8b, 0x44, 0x24, 0x04
+    db 0x83, 0xc0, 0x01
+    db 0xc3
+</pre>
+			<p>命令名で書いたコードと並べて動かすと、命令とバイト列の対応を確認できます。</p>
+		</section>
+
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+	</body>
+</html>

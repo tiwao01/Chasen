@@ -1,3 +1,4 @@
+import * as monaco from "monaco-editor";
 import { DockPanel, Widget } from "@lumino/widgets";
 import { EditorWidget } from "./editor-widget.js";
 
@@ -7,18 +8,128 @@ const EXT_LANG_MAP = {
 	cpp: "cpp",
 	hpp: "cpp",
 	cc: "cpp",
-	py: "python",
-	js: "javascript",
-	ts: "typescript",
-	html: "html",
-	css: "css",
-	json: "json",
-	md: "markdown",
 	sh: "shell",
-	bash: "shell"
+	bash: "shell",
+	asm: "nasm",
+	s: "nasm",
+	inc: "nasm",
+	py: "python",
+	sql: "sql",
+	db: "sql",
+	sqlite: "sql",
+	sqlite3: "sql",
+	php: "php"
 };
 
 const EDITOR_LAYOUT_DELAY_MS = 50;
+
+function registerNasmLanguage () {
+	let languages = [];
+	let isAlreadyRegistered = false;
+	let i = 0;
+
+	if (monaco === undefined || monaco === null || monaco.languages === undefined) {
+		return;
+	}
+
+	languages = monaco.languages.getLanguages();
+
+	for (i = 0; i < languages.length; i = i + 1) {
+		if (languages[i].id === "nasm") {
+			isAlreadyRegistered = true;
+		}
+	}
+
+	if (isAlreadyRegistered === true) {
+		return;
+	}
+
+	monaco.languages.register({ id: "nasm" });
+
+	monaco.languages.setMonarchTokensProvider("nasm", {
+		ignoreCase: true,
+		registers: [
+			"rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp",
+			"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+			"eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp",
+			"ax", "bx", "cx", "dx", "al", "ah", "bl", "bh", "cl", "ch", "dl", "dh",
+			"cs", "ds", "es", "fs", "gs", "ss", "rip", "eip"
+		],
+		instructions: [
+			"mov", "add", "sub", "mul", "imul", "div", "idiv", "inc", "dec",
+			"and", "or", "xor", "not", "shl", "shr", "cmp", "test",
+			"jmp", "je", "jne", "jg", "jge", "jl", "jle", "ja", "jae", "jb", "jbe",
+			"call", "ret", "push", "pop", "lea", "nop", "syscall", "int", "hlt"
+		],
+		directives: [
+			"section", "segment", "global", "extern", "bits", "default",
+			"db", "dw", "dd", "dq", "dt", "resb", "resw", "resd", "resq", "equ", "times",
+			"text", "data", "bss", "ascii", "asciz", "string", "byte", "word", "long", "quad"
+		],
+		tokenizer: {
+			root: [
+				[/[;#].*$/, "comment"],
+				[/^[a-zA-Z_.$?][a-zA-Z0-9_.$?]*:/, "type.identifier"],
+				[/%[a-zA-Z_.$?][a-zA-Z0-9_.$?]*/, {
+					cases: {
+						"@registers": "variable.predefined",
+						"@default": "keyword.control"
+					}
+				}],
+				[/\.[a-zA-Z_.$?][a-zA-Z0-9_.$?]*/, {
+					cases: {
+						"@directives": "keyword.directive",
+						"@default": "keyword.directive"
+					}
+				}],
+				[/[a-zA-Z_.$?][a-zA-Z0-9_.$?]*/, {
+					cases: {
+						"@registers": "variable.predefined",
+						"@instructions": "keyword",
+						"@directives": "keyword.directive",
+						"@default": "identifier"
+					}
+				}],
+				[/\$?-?0[xX][0-9a-fA-F]+/, "number.hex"],
+				[/\$?-?[0-9a-fA-F]+[hH]\b/, "number.hex"],
+				[/\$?-?[01]+[bB]\b/, "number.binary"],
+				[/\$?-?\d+/, "number"],
+				[/"([^"\\]|\\.)*$/, "string.invalid"],
+				[/'([^'\\]|\\.)*$/, "string.invalid"],
+				[/"/, "string", "@string_double"],
+				[/'/, "string", "@string_single"],
+				[/[\[\]\(\)]/, "@brackets"],
+				[/[+\-*/:,=]/, "delimiter"]
+			],
+			string_double: [
+				[/[^\\"]+/, "string"],
+				[/\\./, "string.escape"],
+				[/"/, "string", "@pop"]
+			],
+			string_single: [
+				[/[^\\']+/, "string"],
+				[/\\./, "string.escape"],
+				[/'/, "string", "@pop"]
+			]
+		}
+	});
+
+	monaco.languages.setLanguageConfiguration("nasm", {
+		comments: {
+			lineComment: ";"
+		},
+		brackets: [
+			["[", "]"],
+			["(", ")"]
+		],
+		autoClosingPairs: [
+			{ open: "[", close: "]" },
+			{ open: "(", close: ")" },
+			{ open: "\"", close: "\"" },
+			{ open: "'", close: "'" }
+		]
+	});
+}
 
 /**
  * Manages Lumino DockPanel, Monaco EditorWidget instances, active focus, and tab closing.
@@ -42,6 +153,7 @@ export class EditorDockManager {
 	initDockPanel () {
 		let dockElm = null;
 
+		registerNasmLanguage();
 		dockElm = document.getElementById("dock-container");
 		this.dockPanel = new DockPanel();
 		this.dockPanel.node.style.height = "100%";
@@ -196,6 +308,7 @@ export class EditorDockManager {
 		let monacoLang = "";
 		let self = null;
 
+		registerNasmLanguage();
 		self = this;
 		if (this.openWidgets.has(path)) {
 			widget = this.openWidgets.get(path);

@@ -1,0 +1,10 @@
+FROM	--platform=linux/i386 wasm-alpine-base
+
+RUN	apk add --no-cache \
+		nasm \
+		gcc \
+		musl-dev
+
+RUN mkdir -p /workspace
+
+WORKDIR	/workspace

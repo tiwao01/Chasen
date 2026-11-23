@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>C / C++環境マニュアル | CHASEN</title>
+		<link rel="stylesheet" href="../assets/css/documents.css">
+		<link rel="icon" href="../assets/img/main.svg" type="image/svg+xml">
+	</head>
+	<body>
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+		<h1>C / C++環境マニュアル</h1>
+		<p>本環境で C / C++ を書くときのコンパイル方法と注意点をまとめています。</p>
+
+		<section>
+			<h2>実行方法</h2>
+			<p>ソースファイルを <code>gcc</code> または <code>g++</code> でコンパイルして実行します。</p>
+<pre>
+gcc -m32 -no-pie sample.c -o app
+./app
+</pre>
+
+			<h3>実行例</h3>
+			<p><code>hello.c</code>（C++ の場合は <code>hello.cpp</code> と <code>g++</code>）を作成してコンパイル・実行します。</p>
+<pre>
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("Hello, World!\n");
+    return 0;
+}
+</pre>
+<pre>
+gcc -m32 -no-pie hello.c -o app
+./app
+</pre>
+		</section>
+
+		<section>
+			<h2>注意点</h2>
+			<ul>
+				<li><strong><code>gdb</code> は使えません</strong>：<code>gdb</code> によるデバッグは本環境ではできません。変数の値や処理の流れは出力文などで確認してください。</li>
+				<li><strong><code>-m32 -no-pie</code> の扱い</strong>：C / C++ 単体なら省略できることもありますが、アセンブリ連携や本環境の基準に合わせる場合は <code>gcc -m32 -no-pie</code> / <code>g++ -m32 -no-pie</code> を指定してください。</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>応用・補足</h2>
+
+			<h3>C++ でのビルドと複数ファイル</h3>
+			<p>C++ ソースは <code>g++ -m32 -no-pie</code> でコンパイルし、複数ファイルに分ける場合はまとめて指定します。</p>
+<pre>
+g++ -m32 -no-pie main.cpp calc.cpp -o app
+./app
+</pre>
+		</section>
+
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+	</body>
+</html>

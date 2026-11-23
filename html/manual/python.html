@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>Python環境マニュアル | CHASEN</title>
+		<link rel="stylesheet" href="../assets/css/documents.css">
+		<link rel="icon" href="../assets/img/main.svg" type="image/svg+xml">
+	</head>
+	<body>
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+		<h1>Python環境マニュアル</h1>
+		<p>本環境で Python を使ってプログラムを書くときの実行方法と注意点をまとめています。</p>
+
+		<section>
+			<h2>実行方法</h2>
+			<p>Python スクリプトファイルを <code>python3</code> コマンドで直接実行します。</p>
+<pre>
+python3 sample.py
+</pre>
+
+			<h3>実行例</h3>
+			<p><code>hello.py</code> を作成して実行します。</p>
+<pre>
+print("Hello, World!")
+</pre>
+<pre>
+python3 hello.py
+</pre>
+		</section>
+
+		<section>
+			<h2>注意点</h2>
+			<ul>
+				<li><strong><code>pip</code> は使えません</strong>：インターネット接続がない環境のため、外部パッケージのインストール（<code>pip install</code> など）はできません。標準ライブラリおよびあらかじめ導入されているパッケージのみで記述してください。</li>
+				<li><strong><code>venv</code> やバージョン切り替えには非対応です</strong>：Alpine のリポジトリに入っている <code>python3</code> のみが用意されており、仮想環境の作成や複数バージョンの切り替えはできません。</li>
+				<li><strong>パッケージは固定です</strong>：あらかじめ <code>python3</code>、<code>py3-numpy</code>、<code>py3-pillow</code>、<code>sqlite</code> が導入されています。</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>応用・補足</h2>
+
+			<h3>複数ファイルでの分割</h3>
+			<p>処理を別ファイル（例：<code>calc.py</code>）に分けた場合は、メイン側から <code>import</code> して利用します。</p>
+<pre>
+python3 main.py
+</pre>
+
+			<h3>コマンドライン引数と標準入力</h3>
+			<p><code>sys.argv</code> や <code>input()</code> を使うと、実行時の引数や標準入力を受け取って動作を確認できます。</p>
+		</section>
+
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+	</body>
+</html>

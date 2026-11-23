@@ -9,15 +9,70 @@
 	</head>
 	<body>
 		<h1>CHASEN</h1>
-		<p class="lead">WebIDE環境 — 言語を選択してIDEを起動</p>
-		<ul class="lang-list">
-			<li>
-				<a href="app.html?lang=c">
-					C / C++
-					<span class="lang-desc">ブラウザ上の仮想環境でコンパイル・実行</span>
-				</a>
-			</li>
-		</ul>
+		<p class="lead">環境を選択してIDEを起動</p>
+
+		<section>
+			<h2>プログラミング言語</h2>
+			<ul class="lang-list">
+				<li>
+					<a href="app.html?lang=c">
+						C / C++
+						<span class="lang-desc">gcc, g++</span>
+					</a>
+				</li>
+				<li>
+					<a href="app.html?lang=python">
+						Python 3
+						<span class="lang-desc">python3(+numpy, pillow), sqlite3</span>
+					</a>
+				</li>
+				<li>
+					<a href="app.html?lang=php">
+						PHP
+						<span class="lang-desc">php, sqlite3</span>
+					</a>
+				</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>その他（アセンブラ・UNIXコマンド環境など）</h2>
+			<ul class="lang-list">
+				<li>
+					<a href="app.html?lang=nasm">
+						NASM
+						<span class="lang-desc">nasm, gcc</span>
+					</a>
+				</li>
+			</ul>
+			<ul class="lang-list">
+				<li>
+					<a href="app.html?lang=bash">
+						sh / Bash
+						<span class="lang-desc">sh, bash</span>
+					</a>
+				</li>
+			</ul>
+		</section>
+		
+		<section>
+			<h2>SQL</h2>
+			<ul class="lang-list">
+				<li>
+					<a href="app.html?lang=sqlite">
+						SQLite 3
+						<span class="lang-desc">sqlite3</span>
+					</a>
+				</li>
+			</ul>
+		</section>
+		
+		<section>
+			<h2>共通実行環境</h2>
+			<div class="meta">ディストリビューション: Alpine Linux (i386/alpine - 32bit) / <a href="https://alpinelinux.org/" target="_blank" rel="noopener noreferrer">公式サイト</a>/ <a href="https://hub.docker.com/r/i386/alpine/" target="_blank" rel="noopener noreferrer">Docker Hub</a></div>
+			<div class="meta">実行エンジン: CheerpX (WebAssembly) / <a href="https://cheerpx.io/" target="_blank" rel="noopener noreferrer">公式サイト</a></div>
+		</section>
+		
 		<footer>
 			<p><a href="help.html">IDEヘルプ</a></p>
 			<p><a href="licenses.html">サードパーティライセンス情報</a></p>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>SQLite環境マニュアル | CHASEN</title>
+		<link rel="stylesheet" href="../assets/css/documents.css">
+		<link rel="icon" href="../assets/img/main.svg" type="image/svg+xml">
+	</head>
+	<body>
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+		<h1>SQLite環境マニュアル</h1>
+		<p>本環境で SQLite3 を使って SQL を実行するときの手順と注意点をまとめています。</p>
+
+		<section>
+			<h2>実行方法</h2>
+			<p>データベースファイルを指定して <code>sqlite3</code> を起動するか、SQL ファイルを読み込ませて実行します。</p>
+<pre>
+sqlite3 sample.db &lt; query.sql
+</pre>
+
+			<h3>実行例</h3>
+			<p>テーブル作成とデータ挿入・取得を <code>sqlite3</code> で実行します。</p>
+<pre>
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT
+);
+INSERT INTO users (name) VALUES ('Alice'), ('Bob');
+SELECT * FROM users;
+</pre>
+<pre>
+sqlite3 app.db &lt; init.sql
+</pre>
+		</section>
+
+		<section>
+			<h2>注意点</h2>
+			<ul>
+				<li><strong>対話モードを抜けるときは <code>.quit</code> を使います</strong>：<code>sqlite3</code> を対話形式で起動した場合は、<code>.quit</code> を入力して終了してください。</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>応用・補足</h2>
+
+			<h3>インメモリデータベースでの検証</h3>
+			<p>ファイルを作らず一時的に試したい場合は <code>:memory:</code> を指定して実行できます。</p>
+<pre>
+sqlite3 :memory: &lt; query.sql
+</pre>
+
+			<h3>出力形式の整形</h3>
+			<p>ドットコマンドを使うと、ヘッダ表示や区切り表示を切り替えながら結果を確認しやすくなります。</p>
+<pre>
+.headers on
+.mode column
+SELECT * FROM users;
+</pre>
+		</section>
+
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+	</body>
+</html>

@@ -2,5 +2,5 @@
 	"releaseVersion": "v0.1.0",
 	"releaseBaseUrl": "https://github.com/tiwao01/Chasen/releases/download",
 	"splitSize": "20m",
-	"languages": ["c"]
+	"languages": ["c", "python", "nasm", "sqlite", "bash", "php"]
 }

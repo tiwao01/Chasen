@@ -49,6 +49,10 @@
 					<span class="material-symbols-outlined">upload</span>
 					<span>Upload</span>
 				</button>
+				<button id="btn-manual" class="btn btn-icon" title="Manual">
+					<span class="material-symbols-outlined">menu_book</span>
+					<span><a id="manual-link" href="./manual/c.html" target="_blank" rel="noopener noreferrer" class="btn-link">Manual</a></span>
+				</button>
 				<button id="btn-help" class="btn btn-icon" title="Help">
 					<span class="material-symbols-outlined">help</span>
 					<span><a href="help.html" target="_blank" rel="noopener noreferrer" class="btn-link">Help</a></span>
@@ -94,6 +98,33 @@
 		<script>
 			window.ROOTFS_BASE_URL = "/assets/rootfs";
 			window.ROOTFS_IMAGE_VERSION = "v0.1.0";
+
+			(function () {
+				let params = null;
+				let lang = "";
+				let safeLang = "";
+				let manualLink = null;
+				let manualBtn = null;
+
+				params = new URLSearchParams(window.location.search);
+				lang = params.get("lang");
+				manualLink = document.getElementById("manual-link");
+				manualBtn = document.getElementById("btn-manual");
+
+				if (lang !== null && lang !== "") {
+					safeLang = lang.replace(/[^a-zA-Z0-9_-]/g, "");
+					if (safeLang !== "" && manualLink !== null) {
+						let capLang = "";
+
+						capLang = safeLang.charAt(0).toUpperCase() + safeLang.slice(1);
+						manualLink.href = "./manual/" + safeLang + ".html";
+						manualLink.textContent = "Manual (" + capLang + ")";
+						if (manualBtn !== null) {
+							manualBtn.title = capLang + " Manual";
+						}
+					}
+				}
+			})();
 		</script>
 		<script type="module" src="./assets/js/workspace.js"></script>
 	</body>

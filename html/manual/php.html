@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>PHP環境マニュアル | CHASEN</title>
+		<link rel="stylesheet" href="../assets/css/documents.css">
+		<link rel="icon" href="../assets/img/main.svg" type="image/svg+xml">
+	</head>
+	<body>
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+		<h1>PHP環境マニュアル</h1>
+		<p>本環境で PHP を使ってスクリプトを実行するときの手順と注意点をまとめています。</p>
+
+		<section>
+			<h2>実行方法</h2>
+			<p>PHP スクリプトファイルを <code>php</code> コマンドで直接実行します。</p>
+<pre>
+php sample.php
+</pre>
+
+			<h3>実行例</h3>
+			<p><code>hello.php</code> を作成して実行します。</p>
+<pre>
+&lt;?php
+echo "Hello, World!\n";
+</pre>
+<pre>
+php hello.php
+</pre>
+		</section>
+
+		<section>
+			<h2>注意点</h2>
+			<ul>
+				<li><strong>Composer などの外部パッケージ管理は想定していません</strong>：本環境は最小構成の固定パッケージで動作するため、実行中に外部からパッケージを追加導入する前提では書かないでください。</li>
+				<li><strong>CLI 実行が基本です</strong>：Web サーバーを経由せず、コマンドラインから <code>php</code> コマンドでスクリプトを実行する形になります。</li>
+				<li><strong><code>sqlite3</code> コマンドも利用できます</strong>：PHP の SQLite3 機能に加えて <code>sqlite</code> も導入しているため、ターミナルから直接データベースファイルを確認できます。</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>応用・補足</h2>
+
+			<h3>複数ファイルでの分割</h3>
+			<p>関数やクラスを別ファイル（例：<code>calc.php</code>）に分けた場合は、メイン側から <code>require</code> または <code>include</code> して読み込みます。</p>
+<pre>
+&lt;?php
+require __DIR__ . "/calc.php";
+</pre>
+
+			<h3>SQLite との連携</h3>
+			<p><code>SQLite3</code> クラスを使うと、ワークスペース内のデータベースファイルに対してテーブル作成やクエリ実行を試せます。</p>
+<pre>
+&lt;?php
+$db = new SQLite3("app.db");
+$db-&gt;exec("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT)");
+$db-&gt;close();
+</pre>
+		</section>
+
+		<p><a href="../index.html">← TOPへ戻る</a></p>
+	</body>
+</html>
